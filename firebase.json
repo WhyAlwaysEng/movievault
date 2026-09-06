@@ -1,0 +1,9 @@
+{
+  // Firebase config — docs/MASTER_PLAN_v2.md §2
+  // Hosting: Firebase Hosting or App Hosting for Next.js (choose at deploy time).
+  // Deploy rules with: firebase deploy --only firestore:rules,firestore:indexes
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

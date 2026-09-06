@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="100%" stop-color="#ff0055" />
+    </linearGradient>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1017" />
+      <stop offset="100%" stop-color="#050608" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="8"/>
+  <path d="M140 160 C140 148.954 148.954 140 160 140 L352 140 C363.046 140 372 148.954 372 160 L372 352 C372 363.046 363.046 372 352 372 L160 372 C148.954 372 140 363.046 140 352 Z" fill="none" stroke="url(#cyber-grad)" stroke-width="14" stroke-linejoin="round"/>
+  <polygon points="220,200 324,256 220,312" fill="url(#cyber-grad)"/>
+</svg>

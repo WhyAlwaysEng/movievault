@@ -1,0 +1,72 @@
+rules_version = '2';
+// Firestore Security Rules — docs/MASTER_PLAN_v2.md §4
+// Admin authorization derives from Firebase custom claims (customClaims.role === "admin"),
+// NOT the users.role field (client-writable / spoofable).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // ── Public catalog — readable by signed-in users; only admins write ──
+    match /media/{id} {
+      allow read: if signedIn() && resource.data.status == 'published';
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /media/{id}/seasons/{season}/episodes/{episode} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /actresses/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /studios/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /featured/{doc} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── User data — owner-only writes; admin reads all ──
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) && request.resource.data.diff(resource.data)
+        .affectedKeys().hasOnly(['settings', 'pinHash', 'ageVerifiedAt', 'premiumSince']);
+      allow delete: if isAdmin();
+    }
+    match /favorites/{id} {
+      allow read: if isOwner(resource.data.uid) || isAdmin();
+      allow create: if isOwner(request.resource.data.uid);
+      allow update, delete: if isOwner(resource.data.uid);
+    }
+    match /watch_history/{id} {
+      allow read: if isOwner(resource.data.uid) || isAdmin();
+      allow create: if isOwner(request.resource.data.uid);
+      allow update, delete: if isOwner(resource.data.uid);
+    }
+
+    // ── Admin-only operational collections ──
+    match /moderation_queue/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /audit_log/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /reports/{id} {
+      allow create: if signedIn();
+      allow read, update: if isAdmin();
+    }
+  }
+}
