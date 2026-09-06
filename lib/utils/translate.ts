@@ -10,6 +10,24 @@ export function containsJapanese(text: string): boolean {
   return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(text);
 }
 
+/** Check if string contains Korean Hangul characters */
+export function containsKorean(text: string): boolean {
+  return /[\uac00-\ud7af\u1100-\u11ff]/.test(text);
+}
+
+/** Check if string contains Thai characters */
+export function containsThai(text: string): boolean {
+  return /[\u0e00-\u0e7f]/.test(text);
+}
+
+/** Detect nationality code (KR, JP, TH) from name/text characters */
+export function detectNationalityFromText(text: string): string | undefined {
+  if (containsKorean(text)) return "KR";
+  if (containsJapanese(text)) return "JP";
+  if (containsThai(text)) return "TH";
+  return undefined;
+}
+
 /** Comprehensive JAV Tag / Genre Dictionary (Japanese -> English) */
 export const JAV_TAG_MAP: Record<string, string> = {
   単体作品: "Solo Work",

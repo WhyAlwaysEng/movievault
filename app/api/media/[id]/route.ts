@@ -148,7 +148,7 @@ export async function PATCH(
 
   // actresses: sync both ways
   if (body.actresses) {
-    setMediaActresses(id, body.actresses.map((a) => a.trim()).filter(Boolean));
+    setMediaActresses(id, body.actresses.map((a) => a.trim()).filter(Boolean), (body.country || row.country) ?? undefined);
   }
 
   if (body.title !== undefined || body.actresses) {
@@ -198,6 +198,7 @@ export async function DELETE(
   fs.rmSync(mediaDir(id), { recursive: true, force: true });
   refreshMediaCounts();
   serverCache.invalidateByPrefix("media:");
+  serverCache.invalidateByPrefix("actress:");
   audit(session.uid, "media.delete", "media", id, { code: row.code ?? row.title });
 
   return NextResponse.json({ ok: true });

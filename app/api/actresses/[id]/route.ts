@@ -92,12 +92,17 @@ export async function GET(
       )
       .all(row.id, id, `%"${decodedId}"%`, `%"${row.name}"%`) as Array<Record<string, unknown>>;
 
+    const resolvedCountry =
+      row.country ||
+      works.find((w: any) => w.country && w.country.trim() !== "")?.country ||
+      null;
+
     return {
       actress: {
         id: row.id,
         name: row.name,
         aliases: JSON.parse(row.aliases || "[]"),
-        country: row.country,
+        country: resolvedCountry,
         studio: row.studio,
         bio: row.bio,
         mediaCount: row.media_count,

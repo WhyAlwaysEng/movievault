@@ -138,7 +138,7 @@ export interface TvMazeFullShow {
   posterUrl?: string;
   backdropUrl?: string;
   summary: string;
-  castDetails: Array<{ name: string; character?: string; avatarUrl?: string }>;
+  castDetails: Array<{ name: string; character?: string; avatarUrl?: string; country?: string }>;
   crewDetails: Array<{ name: string; role: string }>;
   seasons: Array<{
     id: number;
@@ -170,6 +170,7 @@ export async function tvmazeGetShowFull(showId: number): Promise<TvMazeFullShow>
     name: c.person?.name || "Actor",
     character: c.character?.name || undefined,
     avatarUrl: c.person?.image?.original || c.person?.image?.medium || undefined,
+    country: c.person?.country?.code || undefined,
   }));
 
   // Crew

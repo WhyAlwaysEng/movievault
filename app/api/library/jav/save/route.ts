@@ -166,9 +166,9 @@ export async function POST(req: NextRequest) {
 
     // Link Actresses
     if (body.actressDetails && body.actressDetails.length > 0) {
-      setMediaActresses(mediaId, body.actressDetails);
+      setMediaActresses(mediaId, body.actressDetails, "JP");
     } else if (actressList.length > 0) {
-      setMediaActresses(mediaId, actressList);
+      setMediaActresses(mediaId, actressList, "JP");
     }
   })();
 

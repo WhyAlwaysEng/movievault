@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
   const insTag = db.prepare("INSERT OR IGNORE INTO media_tags (media_id, tag) VALUES (?, ?)");
   for (const g of genres) insTag.run(mediaId, g);
 
-  setMediaActresses(mediaId, cast);
+  setMediaActresses(mediaId, cast, country);
 
   audit(session.uid, "library.save_tmdb", "media", mediaId, {
     tmdbId,

@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     if (await downloadImage(url, path.join(dir, file))) previewPaths.push(file);
   }
 
+  const country = d.origin_country?.[0] ?? d.production_countries?.[0]?.iso_3166_1 ?? (d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : row.country || "US");
   const year = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || null;
   const genres = (d.genres ?? []).map((g: { name: string }) => g.name);
   const cast = (d.credits?.cast ?? [])
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     .slice(0, 15);
 
   db.prepare(
-    `UPDATE media SET title = ?, title_th = ?, title_en = ?, overview = ?, year = ?,
+    `UPDATE media SET title = ?, title_th = ?, title_en = ?, overview = ?, country = ?, year = ?,
        rating = ?, votes = ?, status = 'draft',
        poster_path = ?, backdrop_path = ?, updated_at = ?
      WHERE id = ?`,
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     title,
     d.original_title ?? d.original_name ?? null,
     d.overview ?? null,
+    country,
     year,
     d.vote_average ?? null,
     d.vote_count ?? null,
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
 
   const insTag = db.prepare("INSERT OR IGNORE INTO media_tags (media_id, tag) VALUES (?, ?)");
   for (const g of genres) insTag.run(mediaId, g);
-  setMediaActresses(mediaId, cast);
+  setMediaActresses(mediaId, cast, country);
 
   audit(session.uid, "library.refetch", "media", mediaId, { tmdbId: row.tmdb_id });
 

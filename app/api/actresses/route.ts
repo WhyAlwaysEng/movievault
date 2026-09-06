@@ -48,11 +48,22 @@ export async function GET(req: NextRequest) {
     );
     params.push(country, country);
   }
+
+  // Only show cast members that actually have active linked media in the vault
+  conditions.push(`EXISTS (SELECT 1 FROM media_actors ma JOIN media m ON m.id = ma.media_id WHERE ma.actress_id = a.id)`);
+
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const rows = db
     .prepare(
-      `SELECT a.id, a.name, a.aliases, a.country, a.studio, a.bio, a.photo_path,
+      `SELECT a.id, a.name, a.aliases,
+         COALESCE(a.country, (
+           SELECT m.country FROM media_actors ma
+           JOIN media m ON m.id = ma.media_id
+           WHERE ma.actress_id = a.id AND m.country IS NOT NULL AND m.country != ''
+           LIMIT 1
+         )) AS country,
+         a.studio, a.bio, a.photo_path,
          (SELECT COUNT(*) FROM media_actors mc WHERE mc.actress_id = a.id) AS media_count,
          (SELECT GROUP_CONCAT(DISTINCT m.type)
             FROM media_actors mg JOIN media m ON m.id = mg.media_id
@@ -87,7 +98,10 @@ export async function GET(req: NextRequest) {
   const countRow = db
     .prepare(
       `SELECT
-         COUNT(*) AS total_all,
+         COUNT(CASE WHEN EXISTS (
+           SELECT 1 FROM media_actors ma JOIN media m ON m.id = ma.media_id
+           WHERE ma.actress_id = a.id
+         ) THEN 1 END) AS total_all,
          COUNT(CASE WHEN EXISTS (
            SELECT 1 FROM media_actors ma JOIN media m ON m.id = ma.media_id
            WHERE ma.actress_id = a.id AND m.type = 'jav'

@@ -20,6 +20,7 @@ export interface CastMember {
   avatarUrl?: string;
   profileUrl?: string;
   actressId?: string;
+  country?: string;
 }
 
 export interface CrewMember {

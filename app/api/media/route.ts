@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
   for (const tag of (body.tags ?? []).map((t) => t.trim()).filter(Boolean)) {
     db.prepare("INSERT OR IGNORE INTO media_tags (media_id, tag) VALUES (?, ?)").run(id, tag);
   }
-  setMediaActresses(id, actresses);
+  setMediaActresses(id, actresses, body.country);
 
   if (body.posterUrl) {
     const dir = mediaDir(id);

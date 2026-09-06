@@ -55,6 +55,8 @@ function ActressesPageContent() {
   const { data, isLoading } = useQuery({
     queryKey: ["actresses", category, mediaId, country],
     queryFn: () => listActresses({ category, mediaId, country }),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const filterOptions = data?.availableFilterOptions;

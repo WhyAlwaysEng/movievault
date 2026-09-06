@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Link Actress
-      setMediaActresses(mediaId, [actressName]);
+      setMediaActresses(mediaId, [actressName], "JP");
     })();
   }
 

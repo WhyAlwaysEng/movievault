@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { containsJapanese, extractAndTranslateActress } from "@/lib/utils/translate";
+import { containsJapanese, detectNationalityFromText, extractAndTranslateActress } from "@/lib/utils/translate";
 
 // Actress sync helpers — both API saves and manual edits funnel through these,
 // so the actress pages always stay in sync (§ requirement: two-way sync).
@@ -14,7 +14,7 @@ export function slugify(name: string): string {
 }
 
 /** Upsert an actress by name (matches existing id/name/alias); returns actress id. */
-export function upsertActress(name: string, photoUrl?: string): string {
+export function upsertActress(name: string, photoUrl?: string, country?: string): string {
   const clean = name.trim();
   if (!clean) return "";
   const { nameEn, nameJa } = extractAndTranslateActress(clean);
@@ -22,9 +22,12 @@ export function upsertActress(name: string, photoUrl?: string): string {
   const id = slugify(primaryName) || `a-${Math.random().toString(36).slice(2, 8)}`;
   const now = Date.now();
 
+  // Detect nationality from script if not explicitly provided
+  const detectedCountry = country || detectNationalityFromText(clean) || detectNationalityFromText(primaryName);
+
   const existing = db
     .prepare(
-      `SELECT id, name, aliases, photo_path FROM actresses 
+      `SELECT id, name, aliases, country, photo_path FROM actresses 
        WHERE id = ? 
           OR id = ? 
           OR LOWER(name) = LOWER(?) 
@@ -40,7 +43,7 @@ export function upsertActress(name: string, photoUrl?: string): string {
       clean,
       `%"${clean}"%`,
       `%"${primaryName}"%`,
-    ) as { id: string; name: string; aliases: string; photo_path: string | null } | undefined;
+    ) as { id: string; name: string; aliases: string; country: string | null; photo_path: string | null } | undefined;
 
   if (existing) {
     const aliases: string[] = JSON.parse(existing.aliases || "[]");
@@ -64,10 +67,12 @@ export function upsertActress(name: string, photoUrl?: string): string {
     }
 
     const newPhoto = !existing.photo_path && photoUrl ? photoUrl : existing.photo_path;
-    if (changed || newPhoto !== existing.photo_path) {
+    const newCountry = !existing.country && detectedCountry ? detectedCountry : existing.country;
+
+    if (changed || newPhoto !== existing.photo_path || newCountry !== existing.country) {
       db.prepare(
-        "UPDATE actresses SET name = ?, aliases = ?, photo_path = ?, updated_at = ? WHERE id = ?",
-      ).run(newName, JSON.stringify(aliases), newPhoto, now, existing.id);
+        "UPDATE actresses SET name = ?, aliases = ?, country = ?, photo_path = ?, updated_at = ? WHERE id = ?",
+      ).run(newName, JSON.stringify(aliases), newCountry || null, newPhoto, now, existing.id);
     }
     return existing.id;
   }
@@ -77,8 +82,8 @@ export function upsertActress(name: string, photoUrl?: string): string {
   if (clean !== primaryName && !initialAliases.includes(clean)) initialAliases.push(clean);
 
   db.prepare(
-    `INSERT INTO actresses (id, name, aliases, photo_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, primaryName, JSON.stringify(initialAliases), photoUrl || null, now, now);
+    `INSERT INTO actresses (id, name, aliases, country, photo_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(id, primaryName, JSON.stringify(initialAliases), detectedCountry || null, photoUrl || null, now, now);
   return id;
 }
 
@@ -105,13 +110,15 @@ export function refreshMediaCounts(actressIds?: string[]) {
 /** Replace the actress set on a media title from an array of names or cast objects. */
 export function setMediaActresses(
   mediaId: string,
-  names: Array<string | { name: string; avatarUrl?: string }>,
+  names: Array<string | { name: string; avatarUrl?: string; country?: string }>,
+  defaultCountry?: string,
 ) {
   const keep = new Set<string>();
   for (const item of names) {
     const raw = typeof item === "string" ? item : item.name;
     const photoUrl = typeof item === "object" ? item.avatarUrl : undefined;
-    const id = upsertActress(raw, photoUrl);
+    const actorCountry = (typeof item === "object" ? item.country : undefined) || defaultCountry;
+    const id = upsertActress(raw, photoUrl, actorCountry);
     if (id) {
       linkActress(mediaId, id);
       keep.add(id);

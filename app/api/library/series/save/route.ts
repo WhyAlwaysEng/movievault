@@ -214,9 +214,9 @@ export async function POST(req: NextRequest) {
   `).run(mediaId);
 
   if (castDetails.length > 0) {
-    setMediaActresses(mediaId, castDetails);
+    setMediaActresses(mediaId, castDetails, country);
   } else if (castNames.length > 0) {
-    setMediaActresses(mediaId, castNames);
+    setMediaActresses(mediaId, castNames, country);
   }
 
   audit(session.uid, "library.save_series", "media", mediaId, {
