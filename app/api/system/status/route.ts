@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { tmdbConfigured } from "@/lib/providers/tmdb";
 import { isOwnerMode } from "@/lib/server/auth";
-import { db } from "@/lib/db";
+import { db, DATA_DIR } from "@/lib/db";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -23,8 +23,9 @@ export async function GET() {
     dbOk = false;
   }
 
-  const mediaDirExists = fs.existsSync(path.resolve(process.cwd(), "data/media"));
-  const dbDirExists = fs.existsSync(path.resolve(process.cwd(), "data/db"));
+  const mediaDirExists = fs.existsSync(path.join(DATA_DIR, "media"));
+  const dbDirExists = fs.existsSync(path.join(DATA_DIR, "db"));
+  const actressesDirExists = fs.existsSync(path.join(DATA_DIR, "actresses"));
   const javConfigured = Boolean(process.env.JAV_API_BASE);
 
   return NextResponse.json({
