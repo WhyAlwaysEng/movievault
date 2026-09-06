@@ -232,7 +232,7 @@ function EditForm({ media, onCancel, onSaved }: EditFormProps) {
     try {
       await deleteMedia(media.id);
       pushToast("Deleted successfully", "success");
-      router.push("/library");
+      window.location.href = media.type === "jav" ? "/library/jav" : media.type === "series" ? "/library/series" : "/library/movies";
     } catch (e) {
       pushToast((e as Error).message, "error");
     }

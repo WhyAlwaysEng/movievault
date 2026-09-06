@@ -144,6 +144,7 @@ function SeriesShelfTab() {
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");
+      setItems((prev) => prev.filter((item) => item.id !== m.id));
       load();
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -189,6 +190,7 @@ function SeriesShelfTab() {
     try {
       await Promise.all(ids.map((id) => deleteMedia(id)));
       pushToast(`Deleted ${ids.length} series`, "success");
+      setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
       load();
     } catch (e) {
       pushToast((e as Error).message, "error");

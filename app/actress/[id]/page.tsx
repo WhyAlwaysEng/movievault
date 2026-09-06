@@ -111,7 +111,9 @@ export default function ActressPage() {
           setData(await getActress(id));
           setEditing(false);
         }}
-        onDeleted={() => router.push("/search")}
+        onDeleted={() => {
+          window.location.href = "/actresses";
+        }}
       />
     );
   }

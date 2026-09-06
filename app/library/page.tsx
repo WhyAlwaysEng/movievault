@@ -157,6 +157,7 @@ function ShelfTab() {
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");
+      setItems((prev) => prev.filter((item) => item.id !== m.id));
       load();
     } catch (e) {
       pushToast((e as Error).message, "error");
