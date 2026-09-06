@@ -134,6 +134,7 @@ export interface TvMazeFullShow {
   runtime?: number;
   officialSite?: string;
   imdbId?: string;
+  country?: string;
   posterUrl?: string;
   backdropUrl?: string;
   summary: string;
@@ -227,6 +228,7 @@ export async function tvmazeGetShowFull(showId: number): Promise<TvMazeFullShow>
     runtime: d.averageRuntime || d.runtime || undefined,
     officialSite: d.officialSite || undefined,
     imdbId: d.externals?.imdb || undefined,
+    country: d.network?.country?.code || d.webChannel?.country?.code || (d.language === "Korean" ? "KR" : d.language === "Japanese" ? "JP" : d.language === "Chinese" ? "CN" : undefined),
     posterUrl: d.image?.original || d.image?.medium || undefined,
     backdropUrl,
     summary: stripHtml(d.summary),

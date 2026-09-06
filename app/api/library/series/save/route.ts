@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
   let extraMetaObj: Record<string, unknown> = {};
   let fullShow: any = null;
 
+  let country: string = "KR"; // Fallback for series
+
   if (body.source === "tvmaze") {
     try {
       fullShow = await tvmazeGetShowFull(body.id);
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
       network = fullShow.network;
       schedule = fullShow.schedule;
       runtime = fullShow.runtime;
+      country = fullShow.country || (fullShow.language === "Korean" ? "KR" : fullShow.language === "Japanese" ? "JP" : "US");
       castDetails = fullShow.castDetails;
       crewDetails = fullShow.crewDetails;
       extraMetaObj = {
@@ -93,6 +96,7 @@ export async function POST(req: NextRequest) {
       finalRating = d.vote_average || finalRating;
       genres = (d.genres ?? []).map((g: { name: string }) => g.name);
       network = d.networks?.[0]?.name;
+      country = d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || (d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : "US");
       castDetails = (d.credits?.cast ?? []).slice(0, 15).map((c: any) => ({
         name: c.name,
         character: c.character,
@@ -130,7 +134,7 @@ export async function POST(req: NextRequest) {
       rating, network, runtime, extra_meta, status, poster_path, backdrop_path,
       search_tokens, created_at, updated_at
     ) VALUES (
-      ?, 'series', ?, ?, ?, ?, 'US', ?,
+      ?, 'series', ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, 'published', ?, ?,
       ?, ?, ?
     )
@@ -140,6 +144,7 @@ export async function POST(req: NextRequest) {
     body.title,
     body.title,
     finalOverview,
+    country,
     finalYear,
     finalRating,
     network || null,

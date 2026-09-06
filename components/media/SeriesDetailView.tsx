@@ -335,105 +335,107 @@ export default function SeriesDetailView({
           )}
         </div>
 
-        {/* Episode Cards Grid */}
+        {/* Episode Cards Grid with Internal Scroll Container */}
         {activeSeason && activeSeason.episodes && activeSeason.episodes.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
-            {activeSeason.episodes.map((ep) => {
-              const durStr = formatDuration(ep.duration);
-              return (
-                <div
-                  key={ep.id}
-                  className="glass card-surface group flex flex-col overflow-hidden rounded-2xl border border-white/10 transition duration-200 hover:border-neon/40 hover:bg-white/[0.04]"
-                >
-                  {/* Episode Thumbnail */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-black/40">
-                    {ep.thumbnailUrl ? (
-                      <Image
-                        src={ep.thumbnailUrl}
-                        alt={ep.title}
-                        fill
-                        unoptimized
-                        sizes="400px"
-                        className="object-cover transition duration-300 group-hover:scale-105"
-                      />
-                    ) : media.backdropUrl ? (
-                      <Image
-                        src={media.backdropUrl}
-                        alt=""
-                        fill
-                        unoptimized
-                        sizes="400px"
-                        className="object-cover opacity-60"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-white/5 text-xs text-mist">
-                        No Thumbnail
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent opacity-80" />
-
-                    {/* Play Button Overlay */}
-                    <Link
-                      href={`/watch/${media.id}?season=${activeSeason.seasonNumber}&episode=${ep.episodeNumber}`}
-                      className="absolute inset-0 grid place-items-center bg-obsidian/40 opacity-0 transition group-hover:opacity-100"
-                    >
-                      <div className="grid h-12 w-12 place-items-center rounded-full bg-neon text-obsidian shadow-neon-pink">
-                        <Play className="h-6 w-6 fill-current translate-x-0.5" />
-                      </div>
-                    </Link>
-
-                    {/* Badges on Thumbnail */}
-                    <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                      <span className="rounded bg-black/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-bold text-neon border border-neon/30">
-                        S{activeSeason.seasonNumber} : E{ep.episodeNumber}
-                      </span>
-                    </div>
-
-                    {durStr && (
-                      <div className="absolute bottom-2 right-2 rounded bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5 text-accent" />
-                        {durStr}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Episode Details */}
-                  <div className="flex flex-1 flex-col justify-between p-4 space-y-2.5">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-white group-hover:text-neon transition">
-                          {ep.episodeNumber}. {ep.title}
-                        </h3>
-                      </div>
-                      {ep.airdate && (
-                        <p className="text-[11px] text-mist flex items-center gap-1 mt-0.5">
-                          <Calendar className="h-3 w-3" />
-                          Aired: {ep.airdate}
-                        </p>
+          <div className="max-h-[640px] overflow-y-auto pr-2 rounded-2xl border border-white/[0.08] bg-black/20 p-3 shadow-inner scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-neon/40">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+              {activeSeason.episodes.map((ep) => {
+                const durStr = formatDuration(ep.duration);
+                return (
+                  <div
+                    key={ep.id}
+                    className="glass card-surface group flex flex-col overflow-hidden rounded-2xl border border-white/10 transition duration-200 hover:border-neon/40 hover:bg-white/[0.04]"
+                  >
+                    {/* Episode Thumbnail */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+                      {ep.thumbnailUrl ? (
+                        <Image
+                          src={ep.thumbnailUrl}
+                          alt={ep.title}
+                          fill
+                          unoptimized
+                          sizes="400px"
+                          className="object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      ) : media.backdropUrl ? (
+                        <Image
+                          src={media.backdropUrl}
+                          alt=""
+                          fill
+                          unoptimized
+                          sizes="400px"
+                          className="object-cover opacity-60"
+                        />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center bg-white/5 text-xs text-mist">
+                          No Thumbnail
+                        </div>
                       )}
-                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-300">
-                        {ep.overview || "No overview available for this episode."}
-                      </p>
-                    </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent opacity-80" />
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className="text-[11px] text-mist">
-                        {ep.sources && ep.sources.length > 0
-                          ? `${ep.sources.length} stream server${ep.sources.length > 1 ? "s" : ""}`
-                          : "Default Master Stream"}
-                      </span>
+                      {/* Play Button Overlay */}
                       <Link
                         href={`/watch/${media.id}?season=${activeSeason.seasonNumber}&episode=${ep.episodeNumber}`}
-                        className="flex items-center gap-1 text-xs font-bold text-neon hover:text-white transition"
+                        className="absolute inset-0 grid place-items-center bg-obsidian/40 opacity-0 transition group-hover:opacity-100"
                       >
-                        <Play className="h-3 w-3 fill-current" />
-                        Watch Episode
+                        <div className="grid h-12 w-12 place-items-center rounded-full bg-neon text-obsidian shadow-neon-pink">
+                          <Play className="h-6 w-6 fill-current translate-x-0.5" />
+                        </div>
                       </Link>
+
+                      {/* Badges on Thumbnail */}
+                      <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                        <span className="rounded bg-black/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-bold text-neon border border-neon/30">
+                          S{activeSeason.seasonNumber} : E{ep.episodeNumber}
+                        </span>
+                      </div>
+
+                      {durStr && (
+                        <div className="absolute bottom-2 right-2 rounded bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5 text-accent" />
+                          {durStr}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Episode Details */}
+                    <div className="flex flex-1 flex-col justify-between p-4 space-y-2.5">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-sm font-bold text-white group-hover:text-neon transition">
+                            {ep.episodeNumber}. {ep.title}
+                          </h3>
+                        </div>
+                        {ep.airdate && (
+                          <p className="text-[11px] text-mist flex items-center gap-1 mt-0.5">
+                            <Calendar className="h-3 w-3" />
+                            Aired: {ep.airdate}
+                          </p>
+                        )}
+                        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-300">
+                          {ep.overview || "No overview available for this episode."}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                        <span className="text-[11px] text-mist">
+                          {ep.sources && ep.sources.length > 0
+                            ? `${ep.sources.length} stream server${ep.sources.length > 1 ? "s" : ""}`
+                            : "Default Master Stream"}
+                        </span>
+                        <Link
+                          href={`/watch/${media.id}?season=${activeSeason.seasonNumber}&episode=${ep.episodeNumber}`}
+                          className="flex items-center gap-1 text-xs font-bold text-neon hover:text-white transition"
+                        >
+                          <Play className="h-3 w-3 fill-current" />
+                          Watch Episode
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="glass card-surface p-8 text-center text-sm text-mist">
