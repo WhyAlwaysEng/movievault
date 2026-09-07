@@ -19,7 +19,7 @@ const CATEGORIES = [
 export default function HomePage() {
   const trending = useQuery({
     queryKey: ["media", "trending"],
-    queryFn: () => fetchMediaList({ sort: "views", count: 12 }),
+    queryFn: () => fetchMediaList({ type: "movie,series", sort: "views", count: 12 }),
   });
   const latest = useQuery({
     queryKey: ["media", "latest"],
@@ -57,41 +57,6 @@ export default function HomePage() {
             </Link>
           );
         })}
-      </section>
-
-      {/* Streaming Highlights */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="glass rounded-2xl border border-white/5 p-4 transition hover:border-accent/30">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 text-accent">
-            <Zap className="h-4 w-4" />
-          </span>
-          <h3 className="mt-3 font-display text-sm font-bold text-white">4K Ultra HD</h3>
-          <p className="mt-1 text-xs text-mist">High-bitrate streaming with zero buffering</p>
-        </div>
-
-        <div className="glass rounded-2xl border border-white/5 p-4 transition hover:border-accent/30">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-400/10 text-cyan-400">
-            <Play className="h-4 w-4" />
-          </span>
-          <h3 className="mt-3 font-display text-sm font-bold text-white">Auto-Resume</h3>
-          <p className="mt-1 text-xs text-mist">Picks up right where you left off</p>
-        </div>
-
-        <div className="glass rounded-2xl border border-white/5 p-4 transition hover:border-neon/30">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-neon/10 text-neon">
-            <Shield className="h-4 w-4" />
-          </span>
-          <h3 className="mt-3 font-display text-sm font-bold text-white">Stealth & PIN</h3>
-          <p className="mt-1 text-xs text-mist">Encrypted passcode protection for adult vault</p>
-        </div>
-
-        <div className="glass rounded-2xl border border-white/5 p-4 transition hover:border-accent/30">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-400/10 text-emerald-400">
-            <Clapperboard className="h-4 w-4" />
-          </span>
-          <h3 className="mt-3 font-display text-sm font-bold text-white">All-in-one Vault</h3>
-          <p className="mt-1 text-xs text-mist">Movies, episodic series & actress databases</p>
-        </div>
       </section>
 
       {/* Continue Watching (Instant Resume) */}

@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "MovieVault — Cyberpunk Media Vault",
+    default: "MovieVault",
     template: "%s · MovieVault",
   },
   description:

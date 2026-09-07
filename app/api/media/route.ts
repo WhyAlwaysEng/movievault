@@ -43,9 +43,16 @@ export async function GET(req: NextRequest) {
       clauses.push("status = ?");
       params.push(status);
     }
-    if (type && (type === "movie" || type === "series" || type === "jav")) {
-      clauses.push("type = ?");
-      params.push(type);
+    if (type) {
+      const types = type.split(",").map((t) => t.trim()).filter(Boolean);
+      const validTypes = types.filter((t) => t === "movie" || t === "series" || t === "jav");
+      if (validTypes.length === 1) {
+        clauses.push("type = ?");
+        params.push(validTypes[0]);
+      } else if (validTypes.length > 1) {
+        clauses.push(`type IN (${validTypes.map(() => "?").join(", ")})`);
+        params.push(...validTypes);
+      }
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const countRow = db
