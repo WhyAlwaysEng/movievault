@@ -72,6 +72,7 @@ interface WaitingItem {
 
 export default function WaitingListPage() {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const queryClient = useQueryClient();
 
   const [inputUrl, setInputUrl] = useState("");
@@ -183,7 +184,14 @@ export default function WaitingListPage() {
 
   // Approve all
   const handleApproveAll = async () => {
-    if (!window.confirm(`ยืนยันนำเข้าทั้ง ${waitingItems.length} รายการเข้าสู่คลังหลักทั้งหมด?`)) return;
+    const ok = await requestConfirm({
+      title: "นำเข้าทั้งหมดเข้าสู่คลังหลัก",
+      message: `คุณต้องการนำเข้ารายการรอทั้งหมด ${waitingItems.length} รายการเข้าสู่คลังหลักใช่หรือไม่?`,
+      confirmText: "ยืนยันนำเข้าทั้งหมด",
+      cancelText: "ยกเลิก",
+      kind: "info",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch("/api/waiting-list/approve", {
@@ -206,7 +214,16 @@ export default function WaitingListPage() {
   };
 
   // Delete single item
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, title?: string) => {
+    const ok = await requestConfirm({
+      title: "ลบออกจาก Waiting List",
+      message: `คุณต้องการลบ "${title || 'รายการนี้'}" ออกจาก Waiting List ใช่หรือไม่?`,
+      confirmText: "ลบรายการ",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       const res = await fetch(`/api/waiting-list?id=${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -220,7 +237,15 @@ export default function WaitingListPage() {
 
   // Clear all
   const handleClearAll = async () => {
-    if (!window.confirm("ยืนยันล้างรายการใน Waiting List ทั้งหมด?")) return;
+    const ok = await requestConfirm({
+      title: "ล้าง Waiting List ทั้งหมด",
+      message: `คุณต้องการลบรายการใน Waiting List ทั้งหมด ${waitingItems.length} รายการใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`,
+      confirmText: "ล้างทั้งหมด",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       const res = await fetch("/api/waiting-list?clearAll=true", { method: "DELETE" });
       if (res.ok) {
@@ -634,7 +659,7 @@ export default function WaitingListPage() {
                   </button>
 
                   <button
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => handleDelete(item.id, item.title)}
                     className="rounded-xl border border-white/10 p-2 text-mist hover:border-red-500/40 hover:text-red-300 transition"
                     title="ลบออกจาก Waiting List"
                   >

@@ -124,6 +124,7 @@ export default function MoviesVaultPage() {
 
 function MovieShelfTab() {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -170,7 +171,15 @@ function MovieShelfTab() {
   };
 
   const remove = async (m: Media) => {
-    if (!confirm(`Delete "${m.title}" from library?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบภาพยนตร์ "${m.title}"`,
+      message: `คุณต้องการลบ "${m.title}" ออกจากคลังภาพยนตร์ใช่หรือไม่?`,
+      confirmText: "ลบภาพยนตร์",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");

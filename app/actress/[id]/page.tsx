@@ -43,7 +43,23 @@ import {
   type PhotoSearchResultItem,
 } from "@/lib/api/client";
 import type { Media } from "@/lib/types";
-import { containsJapanese } from "@/lib/utils/translate";
+import { containsChinese, containsJapanese } from "@/lib/utils/translate";
+
+function formatCountryName(c?: string | null): string {
+  if (!c) return "";
+  const map: Record<string, string> = {
+    US: "🇺🇸 United States (US)",
+    JP: "🇯🇵 Japan (JP)",
+    CN: "🇨🇳 China (CN)",
+    KR: "🇰🇷 South Korea (KR)",
+    TH: "🇹🇭 Thailand (TH)",
+    HK: "🇭🇰 Hong Kong (HK)",
+    TW: "🇹🇼 Taiwan (TW)",
+    GB: "🇬🇧 United Kingdom (UK)",
+    FR: "🇫🇷 France (FR)",
+  };
+  return map[c.toUpperCase()] || c;
+}
 
 export default function ActressPage() {
   const params = useParams<{ id: string }>();
@@ -152,9 +168,15 @@ export default function ActressPage() {
         <div className="flex-1">
           <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
             <h1 className="font-display text-2xl font-bold text-white">{actress.name}</h1>
-            <span className="rounded-full border border-neon/30 bg-neon/10 px-2.5 py-0.5 text-xs font-semibold text-neon">
-              AV Idol
-            </span>
+            {works.some((w) => w.type === "jav") ? (
+              <span className="rounded-full border border-neon/30 bg-neon/10 px-2.5 py-0.5 text-xs font-semibold text-neon shadow-neon-pink">
+                AV Idol
+              </span>
+            ) : (
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent shadow-neon-cyan">
+                Actor / Actress
+              </span>
+            )}
           </div>
           {actress.aliases.find((a) => containsJapanese(a)) && (
             <div className="mt-2 flex items-center justify-center sm:justify-start">
@@ -166,8 +188,18 @@ export default function ActressPage() {
               </span>
             </div>
           )}
+          {actress.aliases.find((a) => containsChinese(a) && !containsJapanese(a)) && (
+            <div className="mt-2 flex items-center justify-center sm:justify-start">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
+                🇨🇳 Chinese Name:{" "}
+                <span className="font-bold">
+                  {actress.aliases.find((a) => containsChinese(a) && !containsJapanese(a))}
+                </span>
+              </span>
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-sm text-mist sm:justify-start">
-            {actress.country && <span>{actress.country}</span>}
+            {actress.country && <span>{formatCountryName(actress.country)}</span>}
             {actress.studio && <span>· {actress.studio}</span>}
             <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs text-accent">
               {works.length} {works.length === 1 ? "title" : "titles"}
@@ -860,6 +892,7 @@ function EditActressForm({
   onDeleted: () => void;
 }) {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(actress.name);
   const [aliases, setAliases] = useState(actress.aliases.join(", "));
@@ -887,7 +920,14 @@ function EditActressForm({
   };
 
   const remove = async () => {
-    if (!confirm(`Delete profile "${actress.name}"? (Links in media will also be removed)`)) return;
+    const ok = await requestConfirm({
+      title: `ลบโปรไฟล์ "${actress.name}"`,
+      message: `คุณต้องการลบข้อมูลโปรไฟล์ "${actress.name}" ใช่หรือไม่? (ความเชื่อมโยงในรายการภาพยนตร์จะถูกนำออกด้วย)`,
+      confirmText: "ลบโปรไฟล์",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteActress(actress.id);
       pushToast("Profile deleted", "success");

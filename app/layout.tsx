@@ -11,6 +11,7 @@ import AgeGate from "@/components/gates/AgeGate";
 import PreviewModalHost from "@/components/media/PreviewModalHost";
 import ImageLightboxHost from "@/components/media/ImageLightboxHost";
 import MediaContextMenuHost from "@/components/media/MediaContextMenuHost";
+import ConfirmModalHost from "@/components/ui/ConfirmModalHost";
 
 export const viewport: Viewport = {
   themeColor: "#060709",
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PreviewModalHost />
             <ImageLightboxHost />
             <MediaContextMenuHost />
+            <ConfirmModalHost />
           </AuthProvider>
         </Providers>
       </body>

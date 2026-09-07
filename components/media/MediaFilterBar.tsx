@@ -24,6 +24,21 @@ interface MediaFilterBarProps {
   filteredCount: number;
 }
 
+function formatCountryName(c: string): string {
+  const map: Record<string, string> = {
+    US: "🇺🇸 United States (US)",
+    JP: "🇯🇵 Japan (JP)",
+    CN: "🇨🇳 China (CN)",
+    KR: "🇰🇷 South Korea (KR)",
+    TH: "🇹🇭 Thailand (TH)",
+    HK: "🇭🇰 Hong Kong (HK)",
+    TW: "🇹🇼 Taiwan (TW)",
+    GB: "🇬🇧 United Kingdom (UK)",
+    FR: "🇫🇷 France (FR)",
+  };
+  return map[c.toUpperCase()] || c;
+}
+
 export default function MediaFilterBar({
   mediaType,
   filters,
@@ -208,7 +223,7 @@ export default function MediaFilterBar({
               <option value="all">All Countries</option>
               {options.countries.map((c) => (
                 <option key={c} value={c}>
-                  {c === "US" ? "🇺🇸 United States (US)" : c === "JP" ? "🇯🇵 Japan (JP)" : c}
+                  {formatCountryName(c)}
                 </option>
               ))}
             </select>

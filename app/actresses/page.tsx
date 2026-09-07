@@ -38,6 +38,21 @@ function CategoryBadges({ types }: { types: string[] }) {
   );
 }
 
+function formatCountryName(c: string): string {
+  const map: Record<string, string> = {
+    US: "🇺🇸 United States (US)",
+    JP: "🇯🇵 Japan (JP)",
+    CN: "🇨🇳 China (CN)",
+    KR: "🇰🇷 South Korea (KR)",
+    TH: "🇹🇭 Thailand (TH)",
+    HK: "🇭🇰 Hong Kong (HK)",
+    TW: "🇹🇼 Taiwan (TW)",
+    GB: "🇬🇧 United Kingdom (UK)",
+    FR: "🇫🇷 France (FR)",
+  };
+  return map[c.toUpperCase()] || c;
+}
+
 function ActressesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -176,7 +191,7 @@ function ActressesPageContent() {
               <option value="all">🌍 All Countries</option>
               {filterOptions?.countries?.map((c) => (
                 <option key={c} value={c}>
-                  {c === "US" ? "🇺🇸 United States (US)" : c === "JP" ? "🇯🇵 Japan (JP)" : c}
+                  {formatCountryName(c)}
                 </option>
               ))}
             </select>

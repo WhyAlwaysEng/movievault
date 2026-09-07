@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { Media } from "@/lib/types";
+import { useUiStore } from "@/lib/store";
 import MediaCard from "@/components/media/MediaCard";
 import type { ViewMode } from "@/components/media/MediaViewSwitcher";
 
@@ -41,6 +42,7 @@ export default function MediaShelfView({
 }: MediaShelfViewProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [batchActionRunning, setBatchActionRunning] = useState(false);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
 
   const allSelected = items.length > 0 && selectedIds.length === items.length;
 
@@ -82,7 +84,14 @@ export default function MediaShelfView({
 
   const handleBatchDelete = async () => {
     if (!onBatchDelete || selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} ${mediaTypeLabel}?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบ ${selectedIds.length} ${mediaTypeLabel}`,
+      message: `คุณต้องการลบรายการที่เลือกทั้งหมด ${selectedIds.length} รายการใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`,
+      confirmText: "ลบทั้งหมดที่เลือก",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
     setBatchActionRunning(true);
     try {
       await onBatchDelete(selectedIds);

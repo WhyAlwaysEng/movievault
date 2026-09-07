@@ -109,6 +109,7 @@ export default function SeriesVaultPage() {
 
 function SeriesShelfTab() {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -140,7 +141,15 @@ function SeriesShelfTab() {
   };
 
   const remove = async (m: Media) => {
-    if (!confirm(`Delete series "${m.title}" from library?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบซีรีส์ "${m.title}"`,
+      message: `คุณต้องการลบซีรีส์ "${m.title}" และตอนทั้งหมดออกจากคลังใช่หรือไม่?`,
+      confirmText: "ลบซีรีส์",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");

@@ -112,6 +112,7 @@ const SHELF_FILTERS: Array<{ id: ShelfFilter; label: string; accent?: "pink" }> 
 
 function ShelfTab() {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [items, setItems] = useState<Media[]>([]);
   const [filter, setFilter] = useState<ShelfFilter>("all");
   const [loading, setLoading] = useState(true);
@@ -153,7 +154,15 @@ function ShelfTab() {
   };
 
   const remove = async (m: Media) => {
-    if (!confirm(`Delete "${m.title}" from library?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบ "${m.title}"`,
+      message: `คุณต้องการลบ "${m.title}" ออกจากคลังสื่อใช่หรือไม่?`,
+      confirmText: "ลบรายการ",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");

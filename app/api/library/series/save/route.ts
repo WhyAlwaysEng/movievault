@@ -96,7 +96,10 @@ export async function POST(req: NextRequest) {
       finalRating = d.vote_average || finalRating;
       genres = (d.genres ?? []).map((g: { name: string }) => g.name);
       network = d.networks?.[0]?.name;
-      country = d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || (d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : "US");
+      country =
+        d.origin_country?.[0] ||
+        d.production_countries?.[0]?.iso_3166_1 ||
+        (d.original_language === "zh" || d.original_language === "cn" ? "CN" : d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : "US");
       castDetails = (d.credits?.cast ?? []).slice(0, 15).map((c: any) => ({
         name: c.name,
         character: c.character,

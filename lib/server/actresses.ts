@@ -66,8 +66,8 @@ export function upsertActress(name: string, photoUrl?: string, country?: string)
       changed = true;
     }
 
-    const newPhoto = !existing.photo_path && photoUrl ? photoUrl : existing.photo_path;
-    const newCountry = !existing.country && detectedCountry ? detectedCountry : existing.country;
+    const newPhoto = photoUrl || existing.photo_path;
+    const newCountry = country || (!existing.country && detectedCountry ? detectedCountry : existing.country);
 
     if (changed || newPhoto !== existing.photo_path || newCountry !== existing.country) {
       db.prepare(

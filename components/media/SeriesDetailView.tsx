@@ -460,7 +460,7 @@ export default function SeriesDetailView({
           </div>
 
           {/* Series Regular Cast */}
-          {media.castDetails && media.castDetails.length > 0 && (
+          {((media.castDetails && media.castDetails.length > 0) || (media.actors && media.actors.length > 0)) && (
             <div className="glass card-surface p-6 space-y-4">
               <h2 className="font-display text-base font-bold text-white flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -468,37 +468,56 @@ export default function SeriesDetailView({
                   Series Cast & Characters
                 </span>
                 <span className="text-xs text-mist font-normal">
-                  {media.castDetails.length} members
+                  {media.castDetails?.length || media.actors.length} members
                 </span>
               </h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {media.castDetails.map((cast, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col items-center rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center transition hover:border-neon/40 hover:bg-white/5"
-                  >
-                    <div className="relative mb-2 h-16 w-16 overflow-hidden rounded-full border border-white/10 shadow-md">
-                      {cast.avatarUrl ? (
-                        <Image
-                          src={cast.avatarUrl}
-                          alt={cast.name}
-                          fill
-                          unoptimized
-                          sizes="64px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="grid h-full w-full place-items-center bg-white/10 text-xs font-bold text-white">
-                          {cast.name.slice(0, 2).toUpperCase()}
-                        </div>
+                {media.castDetails && media.castDetails.length > 0 ? (
+                  media.castDetails.map((cast, idx) => (
+                    <Link
+                      key={idx}
+                      href={`/actress/${encodeURIComponent(cast.name)}`}
+                      className="group flex flex-col items-center rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center transition hover:border-neon/40 hover:bg-white/5 hover:scale-[1.02]"
+                    >
+                      <div className="relative mb-2 h-16 w-16 overflow-hidden rounded-full border border-white/10 shadow-md group-hover:border-neon transition">
+                        {cast.avatarUrl ? (
+                          <Image
+                            src={cast.avatarUrl}
+                            alt={cast.name}
+                            fill
+                            unoptimized
+                            sizes="64px"
+                            className="object-cover group-hover:scale-110 transition duration-300"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full place-items-center bg-white/10 text-xs font-bold text-white group-hover:bg-neon/20 group-hover:text-neon">
+                            {cast.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <p className="line-clamp-1 text-xs font-bold text-white group-hover:text-neon transition">{cast.name}</p>
+                      {cast.character && (
+                        <p className="line-clamp-1 text-[11px] text-mist">{cast.character}</p>
                       )}
-                    </div>
-                    <p className="line-clamp-1 text-xs font-bold text-white">{cast.name}</p>
-                    {cast.character && (
-                      <p className="line-clamp-1 text-[11px] text-mist">{cast.character}</p>
-                    )}
-                  </div>
-                ))}
+                    </Link>
+                  ))
+                ) : (
+                  media.actors.map((actor, idx) => (
+                    <Link
+                      key={idx}
+                      href={`/actress/${encodeURIComponent(actor)}`}
+                      className="group flex flex-col items-center rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center transition hover:border-neon/40 hover:bg-white/5 hover:scale-[1.02]"
+                    >
+                      <div className="relative mb-2 h-16 w-16 overflow-hidden rounded-full border border-white/10 shadow-md group-hover:border-neon transition">
+                        <div className="grid h-full w-full place-items-center bg-white/10 text-xs font-bold text-white group-hover:bg-neon/20 group-hover:text-neon">
+                          {actor.slice(0, 2).toUpperCase()}
+                        </div>
+                      </div>
+                      <p className="line-clamp-1 text-xs font-bold text-white group-hover:text-neon transition">{actor}</p>
+                      <p className="line-clamp-1 text-[11px] text-mist">Cast</p>
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
           )}

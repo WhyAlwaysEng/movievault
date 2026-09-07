@@ -176,6 +176,7 @@ interface EditFormProps {
 function EditForm({ media, onCancel, onSaved }: EditFormProps) {
   const router = useRouter();
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState(media.title);
   const [titleTh, setTitleTh] = useState(media.altTitles?.th ?? "");
@@ -228,7 +229,15 @@ function EditForm({ media, onCancel, onSaved }: EditFormProps) {
   };
 
   const removeMedia = async () => {
-    if (!confirm(`Delete "${media.title}" and all associated files?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบ "${media.title}"`,
+      message: `คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้และไฟล์ทั้งหมดที่เกี่ยวข้องออกจากคลังข้อมูล? การกระทำนี้ไม่สามารถเรียกคืนได้`,
+      confirmText: "ลบรายการทันที",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       await deleteMedia(media.id);
       pushToast("Deleted successfully", "success");

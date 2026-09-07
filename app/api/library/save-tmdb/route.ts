@@ -53,7 +53,10 @@ export async function POST(req: NextRequest) {
 
   // ── assemble fields ───────────────────────────────────────────────────────
   const year = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || null;
-  const country = d.origin_country?.[0] ?? d.production_countries?.[0]?.iso_3166_1 ?? "US";
+  const country =
+    d.origin_country?.[0] ??
+    d.production_countries?.[0]?.iso_3166_1 ??
+    (d.original_language === "zh" || d.original_language === "cn" ? "CN" : d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : "US");
   const genres = (d.genres ?? []).map((g: { name: string }) => g.name);
   const cast = (d.credits?.cast ?? [])
     .map((c: { name?: string }) => c.name)

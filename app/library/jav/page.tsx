@@ -110,6 +110,7 @@ export default function JavVaultPage() {
 
 function JavShelfTab() {
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -141,7 +142,15 @@ function JavShelfTab() {
   };
 
   const remove = async (m: Media) => {
-    if (!confirm(`Delete "${m.code || m.title}" from library?`)) return;
+    const ok = await requestConfirm({
+      title: `ลบผลงาน "${m.code || m.title}"`,
+      message: `คุณต้องการลบ "${m.code ? `[${m.code}] ` : ""}${m.title}" ออกจากคลัง JAV ใช่หรือไม่?`,
+      confirmText: "ลบผลงาน",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
     try {
       await deleteMedia(m.id);
       pushToast("Deleted successfully", "success");

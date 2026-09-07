@@ -33,6 +33,32 @@ interface UiState {
   } | null;
   openContextMenu: (data: { x: number; y: number; imageSrc?: string; media?: Media; title?: string }) => void;
   closeContextMenu: () => void;
+  confirmDialog: {
+    title?: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    kind?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+    onCancel?: () => void;
+  } | null;
+  openConfirm: (options: {
+    title?: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    kind?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }) => void;
+  closeConfirm: () => void;
+  requestConfirm: (options: {
+    title?: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    kind?: "danger" | "warning" | "info";
+  }) => Promise<boolean>;
   toasts: Toast[];
   pushToast: (message: string, kind?: ToastKind) => void;
   dismissToast: (id: number) => void;
@@ -60,6 +86,26 @@ export const useUiStore = create<UiState>()((set) => ({
   contextMenu: null,
   openContextMenu: (data) => set({ contextMenu: data }),
   closeContextMenu: () => set({ contextMenu: null }),
+  confirmDialog: null,
+  openConfirm: (options) => set({ confirmDialog: options }),
+  closeConfirm: () => set({ confirmDialog: null }),
+  requestConfirm: (options) => {
+    return new Promise<boolean>((resolve) => {
+      set({
+        confirmDialog: {
+          ...options,
+          onConfirm: () => {
+            set({ confirmDialog: null });
+            resolve(true);
+          },
+          onCancel: () => {
+            set({ confirmDialog: null });
+            resolve(false);
+          },
+        },
+      });
+    });
+  },
   toasts: [],
   pushToast: (message, kind = "info") => {
     const id = ++toastSeq;

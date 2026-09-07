@@ -121,7 +121,10 @@ export function extractTmdbMovieData(d: any) {
     runtime: typeof d.runtime === "number" && d.runtime > 0 ? d.runtime : undefined,
     releaseDate: d.release_date || undefined,
     year: Number((d.release_date ?? "").slice(0, 4)) || undefined,
-    country: d.origin_country?.[0] ?? d.production_countries?.[0]?.iso_3166_1 ?? "US",
+    country:
+      d.origin_country?.[0] ??
+      d.production_countries?.[0]?.iso_3166_1 ??
+      (d.original_language === "zh" || d.original_language === "cn" ? "CN" : d.original_language === "ko" ? "KR" : d.original_language === "ja" ? "JP" : "US"),
     rating: d.vote_average || undefined,
     votes: d.vote_count || undefined,
     budget: d.budget > 0 ? d.budget : undefined,

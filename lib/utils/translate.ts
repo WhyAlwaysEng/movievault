@@ -20,11 +20,24 @@ export function containsThai(text: string): boolean {
   return /[\u0e00-\u0e7f]/.test(text);
 }
 
-/** Detect nationality code (KR, JP, TH) from name/text characters */
+/** Check if string contains Chinese (Hanzi) characters */
+export function containsChinese(text: string): boolean {
+  // Common CJK Unified Ideographs
+  return /[\u3400-\u4dbf\u4e00-\u9fff]/.test(text);
+}
+
+/** Check if string contains Hiragana or Katakana (distinctively Japanese) */
+export function containsJapaneseKana(text: string): boolean {
+  return /[\u3040-\u30ff]/.test(text);
+}
+
+/** Detect nationality code (CN, KR, JP, TH) from name/text characters */
 export function detectNationalityFromText(text: string): string | undefined {
   if (containsKorean(text)) return "KR";
-  if (containsJapanese(text)) return "JP";
+  if (containsJapaneseKana(text)) return "JP";
   if (containsThai(text)) return "TH";
+  if (containsChinese(text)) return "CN";
+  if (containsJapanese(text)) return "JP";
   return undefined;
 }
 
