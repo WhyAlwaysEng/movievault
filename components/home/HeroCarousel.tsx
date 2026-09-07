@@ -65,7 +65,8 @@ export default function HeroCarousel({ items }: HeroCarouselProps) {
 
   const current = items[Math.min(index, items.length - 1)];
   const isJav = current.type === "jav";
-  const imageSrc = current.backdropUrl || current.posterUrl || "";
+  const backdropSrc = current.backdropUrl || current.posterUrl || "";
+  const posterSrc = current.posterUrl || current.backdropUrl || "";
 
   // Clean JAV title: remove redundant brackets code from beginning
   const heroDisplayTitle = isJav && current.code
@@ -73,10 +74,6 @@ export default function HeroCarousel({ items }: HeroCarouselProps) {
     : current.title;
 
   const leadActor = current.actors && current.actors.length > 0 ? current.actors[0] : null;
-
-  // Determine if item has portrait poster or is JAV
-  const isPortraitLayout = isJav || !current.backdropUrl || current.backdropUrl === current.posterUrl;
-  const posterSrc = current.posterUrl || current.backdropUrl || "";
 
   return (
     <section className="group relative overflow-hidden rounded-3xl border border-white/[0.07] bg-[#07090c] shadow-glass">
@@ -89,71 +86,69 @@ export default function HeroCarousel({ items }: HeroCarouselProps) {
           transition={{ duration: 0.5 }}
           className="relative min-h-[420px] sm:h-[480px] w-full overflow-hidden flex flex-col justify-between"
         >
-          {isPortraitLayout ? (
-            /* ─────────────────────────────────────────────────────────────
-               ADAPTIVE JAV / PORTRAIT COVER LAYOUT:
-               Ambient blurred aura in background + 3D floating right poster card
-               Full cover visibility with 0% cropping, high-end Apple TV style
-               ───────────────────────────────────────────────────────────── */
-            <>
-              {/* Ambient Glow Aura */}
-              {posterSrc && (
-                <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={posterSrc}
-                    alt=""
-                    className="absolute -right-20 -top-20 h-[140%] w-[140%] max-w-none object-cover opacity-20 blur-3xl saturate-150"
-                  />
-                  <div className="absolute inset-0 bg-[#07090c]/75 backdrop-blur-xl" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#07090c] via-transparent to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#07090c] via-[#07090c]/80 to-transparent" />
-                </div>
-              )}
+          {/* ─────────────────────────────────────────────────────────────
+             UNIFIED CINEMATIC BACKDROP BACKGROUND (Movie/Series style)
+             with rich gradients and atmospheric color aura
+             ───────────────────────────────────────────────────────────── */}
+          {backdropSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={backdropSrc}
+              alt={current.title}
+              className={`absolute inset-0 h-full w-full object-cover ${
+                isJav ? "opacity-25 blur-sm scale-105" : "object-center sm:object-[center_25%] opacity-40 sm:opacity-50"
+              } transition-transform duration-700 ease-out`}
+            />
+          ) : null}
 
-              {/* 3D Floating Full Jacket Cover on the Right (Visible on tablet & desktop) */}
-              {posterSrc && (
-                <div className="pointer-events-none absolute right-6 lg:right-10 top-1/2 hidden -translate-y-1/2 md:flex md:items-center md:justify-center z-10">
-                  <div className="relative group/poster perspective-1000">
-                    {/* Atmospheric neon underglow matching jacket colors */}
-                    <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-neon/40 via-purple-500/30 to-accent/40 blur-2xl opacity-70 group-hover/poster:opacity-90 transition-opacity duration-500" />
-                    
-                    {/* Real JAV Jacket aspect ratio (800x537 ~ 1.49:1), full cover with 0% crop */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={posterSrc}
-                      alt={current.title}
-                      className="relative h-[250px] w-[370px] lg:h-[310px] lg:w-[460px] xl:h-[340px] xl:w-[505px] rounded-2xl object-cover shadow-2xl border border-white/20 ring-1 ring-white/10 transition-all duration-500 ease-out hover:scale-105 hover:border-white/35"
-                    />
+          {/* Atmospheric ambient underglow / vignette */}
+          <div className="absolute inset-0 bg-[#07090c]/40 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#07090c] via-[#07090c]/85 to-[#07090c]/40 sm:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07090c] via-[#07090c]/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#07090c]/60 via-transparent to-transparent sm:from-[#07090c]/30" />
 
-                    {current.code && (
-                      <div className="absolute bottom-3 left-3 rounded-md bg-black/85 backdrop-blur-md px-2.5 py-1 font-mono text-xs font-bold text-neon border border-neon/50 shadow-md">
-                        {current.code}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            /* ─────────────────────────────────────────────────────────────
-               CINEMATIC HORIZONTAL BACKDROP LAYOUT (Movies & Series):
-               Full-bleed widescreen fill with subtle pan & multi-directional mask
-               ───────────────────────────────────────────────────────────── */
-            <>
-              {imageSrc ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imageSrc}
-                  alt={current.title}
-                  className="absolute inset-0 h-full w-full object-cover object-center sm:object-[center_25%] transition-transform duration-700 ease-out"
+          {/* ─────────────────────────────────────────────────────────────
+             FLOATING 3D POSTER CARD ON THE RIGHT (Like JAV layout)
+             Shows 2:3 vertical poster for Movie/Series or horizontal jacket for JAV
+             ───────────────────────────────────────────────────────────── */}
+          {posterSrc && (
+            <div className="pointer-events-none absolute right-6 lg:right-12 top-1/2 hidden -translate-y-1/2 md:flex md:items-center md:justify-center z-10">
+              <div className="relative group/poster perspective-1000">
+                {/* Atmospheric neon underglow matching theme colors */}
+                <div
+                  className={`absolute -inset-3 rounded-2xl blur-2xl opacity-60 group-hover/poster:opacity-90 transition-opacity duration-500 ${
+                    isJav
+                      ? "bg-gradient-to-r from-neon/40 via-purple-500/30 to-accent/40"
+                      : "bg-gradient-to-r from-accent/30 via-cyan-500/20 to-blue-600/30"
+                  }`}
                 />
-              ) : null}
 
-              <div className="absolute inset-0 bg-gradient-to-r from-[#07090c] via-[#07090c]/70 to-transparent sm:via-[#07090c]/60" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#07090c] via-[#07090c]/30 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#07090c]/60 via-transparent to-transparent sm:from-[#07090c]/40" />
-            </>
+                {/* Poster Cover */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={posterSrc}
+                  alt={current.title}
+                  className={`relative rounded-2xl object-cover shadow-2xl border border-white/20 ring-1 ring-white/10 transition-all duration-500 ease-out hover:scale-105 hover:border-white/40 ${
+                    isJav
+                      ? "h-[250px] w-[370px] lg:h-[310px] lg:w-[460px] xl:h-[340px] xl:w-[505px]"
+                      : "h-[300px] w-[200px] lg:h-[360px] lg:w-[240px] xl:h-[390px] xl:w-[260px]"
+                  }`}
+                />
+
+                {current.code && isJav && (
+                  <div className="absolute bottom-3 left-3 rounded-md bg-black/85 backdrop-blur-md px-2.5 py-1 font-mono text-xs font-bold text-neon border border-neon/50 shadow-md">
+                    {current.code}
+                  </div>
+                )}
+
+                {/* Quality or Rating badge for Movies & Series */}
+                {!isJav && typeof current.rating === "number" && current.rating > 0 && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 rounded-lg bg-black/80 backdrop-blur-md px-2.5 py-1 text-xs font-bold text-amber-300 border border-amber-400/30 shadow-lg">
+                    ★ {current.rating.toFixed(1)}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Content Overlay (Left Column) */}
@@ -202,8 +197,8 @@ export default function HeroCarousel({ items }: HeroCarouselProps) {
             </div>
 
             {/* Lead Actor highlight */}
-            {isJav && leadActor && (
-              <p className="mt-3 text-sm font-semibold text-neon/90">
+            {leadActor && (
+              <p className={`mt-3 text-sm font-semibold ${isJav ? "text-neon/90" : "text-accent/90"}`}>
                 ⭐ {leadActor}
                 {current.actors.length > 1 && (
                   <span className="ml-1 text-xs text-mist/60 font-normal">
