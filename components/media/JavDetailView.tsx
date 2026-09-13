@@ -36,7 +36,12 @@ import type { Media, MediaSource } from "@/lib/types";
 import { openGhostPlayer } from "@/lib/utils/ghostPlayer";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useUiStore } from "@/lib/store";
-import { extractAndTranslateActress } from "@/lib/utils/translate";
+import {
+  extractAndTranslateActress,
+  translateStudio,
+  translateDirectorName,
+  containsJapanese,
+} from "@/lib/utils/translate";
 import TrailerModal from "@/components/media/TrailerModal";
 import MediaRow from "@/components/home/MediaRow";
 import AddToCollectionModal from "@/components/media/AddToCollectionModal";
@@ -72,16 +77,33 @@ export default function JavDetailView({
 
   const extra = (media.extraMeta || {}) as {
     label?: string;
+    labelJa?: string;
     maker?: string;
+    makerJa?: string;
     series?: string;
     seriesName?: string;
+    seriesJa?: string;
+    directorJa?: string;
     previewImages?: string[];
     javdbId?: string;
     censored?: boolean;
     magnets?: Array<{ title: string; size?: string; magnet: string; isSubtitled: boolean; date?: string }>;
   };
 
+  const rawStudio = extra.maker || media.studio;
+  const studioEn = rawStudio ? translateStudio(rawStudio) : "";
+  const studioJa = extra.makerJa || (rawStudio && containsJapanese(rawStudio) ? rawStudio : undefined);
+
+  const rawLabel = extra.label;
+  const labelEn = rawLabel ? translateStudio(rawLabel) : "";
+  const labelJa = extra.labelJa || (rawLabel && containsJapanese(rawLabel) ? rawLabel : undefined);
+
+  const rawDirector = media.director;
+  const directorEn = rawDirector ? translateDirectorName(rawDirector) : "";
+  const directorJa = extra.directorJa || (rawDirector && containsJapanese(rawDirector) ? rawDirector : undefined);
+
   const seriesTitle = extra.seriesName || extra.series;
+  const seriesJa = extra.seriesJa || (seriesTitle && containsJapanese(seriesTitle) ? seriesTitle : undefined);
 
   const primaryActress = media.castDetails?.[0]?.name || media.actors?.[0];
   const { nameEn: primaryActressEn } = extractAndTranslateActress(primaryActress || "");
@@ -318,27 +340,36 @@ export default function JavDetailView({
                 {media.title}
               </h1>
               {media.altTitles?.ja && media.altTitles.ja !== media.title && (
-                <p className="mt-1 text-sm font-medium text-slate-400">
-                  {media.altTitles.ja}
+                <p className="mt-1 text-xs font-medium text-rose-300/90 font-sans">
+                  🇯🇵 {media.altTitles.ja}
                 </p>
               )}
             </div>
 
             {/* Quick Maker & Director Line */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-1">
-              {extra.maker && (
+              {studioEn && (
                 <span>
-                  Studio: <strong className="text-white">{extra.maker}</strong>
+                  Studio: <strong className="text-white">{studioEn}</strong>
+                  {studioJa && studioJa !== studioEn && (
+                    <span className="ml-1 text-[11px] text-rose-300/80 font-normal">🇯🇵 {studioJa}</span>
+                  )}
                 </span>
               )}
-              {extra.label && (
+              {labelEn && labelEn !== studioEn && (
                 <span>
-                  Label: <strong className="text-white">{extra.label}</strong>
+                  Label: <strong className="text-white">{labelEn}</strong>
+                  {labelJa && labelJa !== labelEn && (
+                    <span className="ml-1 text-[11px] text-rose-300/80 font-normal">🇯🇵 {labelJa}</span>
+                  )}
                 </span>
               )}
-              {media.director && (
+              {directorEn && (
                 <span>
-                  Director: <strong className="text-white">{media.director}</strong>
+                  Director: <strong className="text-white">{directorEn}</strong>
+                  {directorJa && directorJa !== directorEn && (
+                    <span className="ml-1 text-[11px] text-rose-300/80 font-normal">🇯🇵 {directorJa}</span>
+                  )}
                 </span>
               )}
             </div>
@@ -454,14 +485,21 @@ export default function JavDetailView({
 
               <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
                 <span className="text-xs text-mist block mb-1">Maker / Studio</span>
-                {extra.maker || media.studio ? (
-                  <Link
-                    href={`/search?studio=${encodeURIComponent(extra.maker || media.studio || "")}`}
-                    className="font-semibold text-accent hover:underline"
-                    title={`Browse all titles by ${extra.maker || media.studio}`}
-                  >
-                    {extra.maker || media.studio}
-                  </Link>
+                {studioEn ? (
+                  <div>
+                    <Link
+                      href={`/search?studio=${encodeURIComponent(studioEn)}`}
+                      className="font-semibold text-accent hover:underline block truncate"
+                      title={`Browse all titles by ${studioEn}`}
+                    >
+                      {studioEn}
+                    </Link>
+                    {studioJa && studioJa !== studioEn && (
+                      <span className="text-[11px] text-rose-300/80 block truncate mt-0.5">
+                        🇯🇵 {studioJa}
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="font-semibold text-white">Unknown</span>
                 )}
@@ -469,14 +507,21 @@ export default function JavDetailView({
 
               <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
                 <span className="text-xs text-mist block mb-1">Label</span>
-                {extra.label ? (
-                  <Link
-                    href={`/search?studio=${encodeURIComponent(extra.label)}`}
-                    className="font-semibold text-accent hover:underline"
-                    title={`Browse all titles under ${extra.label}`}
-                  >
-                    {extra.label}
-                  </Link>
+                {labelEn ? (
+                  <div>
+                    <Link
+                      href={`/search?studio=${encodeURIComponent(labelEn)}`}
+                      className="font-semibold text-accent hover:underline block truncate"
+                      title={`Browse all titles under ${labelEn}`}
+                    >
+                      {labelEn}
+                    </Link>
+                    {labelJa && labelJa !== labelEn && (
+                      <span className="text-[11px] text-rose-300/80 block truncate mt-0.5">
+                        🇯🇵 {labelJa}
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="font-semibold text-white">Unknown</span>
                 )}
@@ -484,13 +529,29 @@ export default function JavDetailView({
 
               <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
                 <span className="text-xs text-mist block mb-1">Director</span>
-                <span className="font-semibold text-white">{media.director || "Unknown"}</span>
+                {directorEn ? (
+                  <div>
+                    <span className="font-semibold text-white block truncate">{directorEn}</span>
+                    {directorJa && directorJa !== directorEn && (
+                      <span className="text-[11px] text-rose-300/80 block truncate mt-0.5">
+                        🇯🇵 {directorJa}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="font-semibold text-white">Unknown</span>
+                )}
               </div>
 
-              {extra.series && (
+              {seriesTitle && (
                 <div className="col-span-2 sm:col-span-3 rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
                   <span className="text-xs text-mist block mb-1">Series</span>
-                  <span className="font-semibold text-white">{extra.series}</span>
+                  <span className="font-semibold text-white block">{seriesTitle}</span>
+                  {seriesJa && seriesJa !== seriesTitle && (
+                    <span className="text-[11px] text-rose-300/80 block mt-0.5">
+                      🇯🇵 {seriesJa}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

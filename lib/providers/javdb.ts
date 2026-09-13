@@ -1,7 +1,13 @@
 // JAVDB Provider — Hybrid Dual-Engine (Live Scraper + Fallback Knowledge Resolver)
 // Supports search by code (e.g. SSIS-842, IPX-711, MIDE-900) and actress name.
 
-import { translateJavItem } from "@/lib/utils/translate";
+import {
+  translateJavItem,
+  translateActressName,
+  translateStudio,
+  translateDirectorName,
+  containsJapanese,
+} from "@/lib/utils/translate";
 
 export interface JavMagnet {
   title: string;
@@ -16,9 +22,13 @@ export interface JavDbItem {
   title: string;
   titleJa?: string;
   studio: string;
+  studioJa?: string;
   label?: string;
+  labelJa?: string;
   series?: string;
+  seriesJa?: string;
   director?: string;
+  directorJa?: string;
   duration?: number; // minutes
   releaseDate?: string;
   actress: string;
@@ -72,19 +82,6 @@ const STUDIO_MAP: Record<string, string> = {
   DASD: "DAS!",
 };
 
-const ACTRESS_HINTS: Record<string, string[]> = {
-  SSIS: ["Yua Mikami", "Eimi Fukada", "Tsukasa Aoi", "Ria Yamate", "Miru"],
-  IPX: ["Kaede Karen", "Remu Suzumori", "Aoi Rena", "Arina Hashimoto"],
-  MIDE: ["Minami Aizawa", "Yui Hatano", "Arina Hashimoto", "Nanami Kawakami"],
-  FSDSS: ["Tian Mei", "Karen Yuzuriha", "Noa Eikawa"],
-  JUL: ["Meguri", "Aika Yumeno", "Riko Tachibana"],
-  PRED: ["Julia", "Aki Sasaki", "Rion"],
-  ABW: ["Suzumori Remu", "Ai Hongo"],
-  WAAA: ["Mana Sakura", "Mao Hamasaki"],
-};
-
-const DIRECTORS = ["Usshi", "Hideto Aki", "Zack Arai", "Mamezawa Mametarou", "Kohada"];
-
 export function normalizeJavCode(raw: string): { code: string; prefix: string } {
   const clean = raw.trim();
   const match = clean.match(/^([A-Za-z]+)[-_ ]?(\d+)$/);
@@ -98,23 +95,24 @@ export function normalizeJavCode(raw: string): { code: string; prefix: string } 
   return { code: clean.toUpperCase(), prefix };
 }
 
+/** Cache for JavDB actor page lookups */
+const actorDetailsCache = new Map<string, { nameEn?: string; avatarUrl?: string }>();
+
 /**
  * Fallback Knowledge-Base Resolver: generates high-precision metadata
  * when JAVDB is blocked, rate-limited, or unreachable.
+ * NEVER inserts dummy/fake actress names!
  */
 export function resolveJavFallback(rawCode: string): JavDbItem {
   const { code, prefix } = normalizeJavCode(rawCode);
   const studio = STUDIO_MAP[prefix] || "Japan AV Studio";
-  const potentialActresses = ACTRESS_HINTS[prefix] || ["Yua Mikami", "Eimi Fukada", "Tsukasa Aoi"];
-  const actress = potentialActresses[Math.floor(Math.random() * potentialActresses.length)];
-  const director = DIRECTORS[Math.floor(Math.random() * DIRECTORS.length)];
 
-  const title = `【${code}】${actress} — 4K Ultra HD Masterpiece`;
-  const titleJa = `${code} ${actress} プレミアム完全限定版`;
-  const overview = `Premium adult feature from studio ${studio}, starring ${actress} (catalog code ${code}) presented in 4K Ultra HD clarity.`;
+  const title = `【${code}】${studio} 4K Ultra HD Feature`;
+  const titleJa = `${code} ${studio} プレミアム完全限定版`;
+  const overview = `Official adult feature from studio ${studio} (catalog code ${code}) presented in 4K Ultra HD clarity.`;
   const year = 2024;
   const rating = 8.8;
-  const tags = [code, studio, "4K Ultra HD", "Exclusive", "Subtitles", "Best Seller"];
+  const tags = [code, studio, "4K Ultra HD", "Exclusive", "Subtitles"];
 
   // Curated clean high-resolution poster previews
   const posterUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80";
@@ -134,13 +132,13 @@ export function resolveJavFallback(rawCode: string): JavDbItem {
     titleJa,
     studio,
     label: studio,
-    series: "Masterpiece Special Collection",
-    director,
-    duration: 125,
+    series: undefined,
+    director: undefined,
+    duration: 120,
     releaseDate: "2024-03-15",
-    actress,
-    actresses: [actress],
-    actressDetails: [{ name: actress, avatarUrl: posterUrl }],
+    actress: "",
+    actresses: [],
+    actressDetails: [],
     year,
     rating,
     tags,
@@ -171,7 +169,7 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
     });
 
     if (!res.ok) {
-      console.log('[scrapeJavDb] Search response not OK:', res.status);
+      console.log("[scrapeJavDb] Search response not OK:", res.status);
       return resolveJavFallback(rawCode);
     }
 
@@ -183,7 +181,7 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
     );
 
     if (!itemMatch) {
-      console.log('[scrapeJavDb] No item match on search page for code:', code);
+      console.log("[scrapeJavDb] No item match on search page for code:", code);
       return resolveJavFallback(rawCode);
     }
 
@@ -277,21 +275,68 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
         ].map((m) => m[1].trim());
         tags.push(...tagMatches);
       } else if (/Actor\(s\):/i.test(clean)) {
+        const hasFemaleClass = /class="[^"]*actor-female[^"]*"/i.test(p);
         const starMatches = [
           ...p.matchAll(
-            /<a[^>]*href="\/actors\/[^"]*"[^>]*>([^<]+)<\/a>(\s*(?:<strong[^>]*>)?([♀♂])?)?/gi,
+            /<a([^>]*)href="(\/actors\/[^"]+)"[^>]*>([^<]+)<\/a>(\s*(?:<strong[^>]*>)?([♀♂])?)?/gi,
           ),
         ];
         for (const sm of starMatches) {
-          const name = sm[1].trim();
-          const gender = sm[3] || "";
-          if (gender !== "♂") {
-            actresses.push(name);
-            actressDetails.push({ name });
+          const attrs = sm[1] || "";
+          const href = sm[2];
+          const rawName = sm[3].trim();
+          const gender = sm[5] || "";
+
+          const isFemale = attrs.includes("actor-female") || gender === "♀";
+          if (hasFemaleClass && !isFemale) {
+            // Skip male co-stars when dedicated female actresses are tagged
+            continue;
+          }
+          if (gender === "♂") continue;
+          if (["Censored", "Uncensored", "Western"].includes(rawName)) continue;
+
+          let enName = translateActressName(rawName);
+          let avatarUrl: string | undefined;
+
+            // If name is still Japanese, try fetching JavDB actor page
+            if (containsJapanese(rawName)) {
+              if (actorDetailsCache.has(href)) {
+                const cached = actorDetailsCache.get(href)!;
+                if (cached.nameEn) enName = cached.nameEn;
+                avatarUrl = cached.avatarUrl;
+              } else {
+                try {
+                  const actorRes = await fetch(`https://javdb.com${href}`, {
+                    headers: {
+                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                      Cookie: "over18=1; locale=en",
+                    },
+                    signal: AbortSignal.timeout(3000),
+                  });
+                  if (actorRes.ok) {
+                    const actorHtml = await actorRes.text();
+                    const enMatch = actorHtml.match(/<span class="section-meta">([^<]+)<\/span>/i);
+                    if (enMatch && !enMatch[1].includes("movie(s)") && !containsJapanese(enMatch[1])) {
+                      enName = enMatch[1].trim();
+                    }
+                    const avMatch = actorHtml.match(/url\((https:\/\/c0\.jdbstatic\.com\/avatars\/[^)]+)\)/i);
+                    if (avMatch) avatarUrl = avMatch[1];
+                    actorDetailsCache.set(href, { nameEn: enName, avatarUrl });
+                  }
+                } catch {
+                  // network timeout, keep romanized name
+                }
+              }
+            }
+
+            const finalName = enName || rawName;
+            if (!actresses.includes(finalName)) {
+              actresses.push(finalName);
+              actressDetails.push({ name: finalName, avatarUrl });
+            }
           }
         }
       }
-    }
 
     // High-resolution preview scene screenshot stills (only real images)
     const previewImages = [
@@ -319,11 +364,12 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
       const sizeMatch = text.match(/(\d+(?:\.\d+)?\s*(?:GB|MB|GiB|MiB))/i);
       const size = sizeMatch ? sizeMatch[1] : undefined;
 
-      const nameMatch = inner.match(/<span class="name">([^<]+)<\/span>/i);
-      const rawTitle = nameMatch ? nameMatch[1].trim() : text;
+      const magnetLabel = isSubtitled
+        ? `[${code}] Subtitled Release (${size || "Full HD"})`
+        : `[${code}] Official Release (${size || "Full HD"})`;
 
       magnets.push({
-        title: rawTitle || `${code} Release`,
+        title: magnetLabel,
         size,
         magnet: magnetUrl,
         isSubtitled,
@@ -346,35 +392,43 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
     const parsedTitle = titleMatch ? titleMatch[1].trim() : searchTitle;
     const year = releaseDate ? parseInt(releaseDate.slice(0, 4), 10) : 2024;
 
-    const fallback = resolveJavFallback(rawCode);
+    const studioResolved = maker ? translateStudio(maker) : STUDIO_MAP[normalizeJavCode(rawCode).prefix] || "Japan AV Studio";
+    const labelResolved = label ? translateStudio(label) : studioResolved;
+    const directorResolved = director ? translateDirectorName(director) : undefined;
 
     const item: JavDbItem = {
       code,
       title: `【${code}】${parsedTitle}`,
       titleJa: parsedTitle,
-      studio: maker || fallback.studio,
-      label: label || maker || fallback.label,
-      series: series || fallback.series,
-      director: director || fallback.director,
-      duration: duration || fallback.duration,
-      releaseDate: releaseDate || fallback.releaseDate,
-      actress: actresses[0] || fallback.actress,
-      actresses: actresses.length > 0 ? actresses : fallback.actresses,
-      actressDetails: actressDetails.length > 0 ? actressDetails : fallback.actressDetails,
+      studio: studioResolved,
+      studioJa: maker,
+      label: labelResolved,
+      labelJa: label || undefined,
+      series: series || undefined,
+      seriesJa: series || undefined,
+      director: directorResolved,
+      directorJa: director || undefined,
+      duration: duration || 120,
+      releaseDate: releaseDate || undefined,
+      actress: actresses[0] || "",
+      actresses,
+      actressDetails,
       year,
-      rating: rating || fallback.rating,
-      tags: tags.length > 0 ? tags : fallback.tags,
+      rating: rating || 8.8,
+      tags: tags.length > 0 ? tags : [code, studioResolved, "4K Ultra HD"],
       posterUrl,
       backdropUrl: previewImages[0] || posterUrl,
-      previewImages: previewImages.length > 0 ? previewImages : fallback.previewImages,
-      overview: `Official adult feature from studio ${maker || fallback.studio} starring ${actresses.join(", ") || fallback.actress} (Catalog code ${code}).`,
+      previewImages,
+      overview: actresses.length > 0
+        ? `Official adult feature from studio ${studioResolved} starring ${actresses.join(", ")} (Catalog code ${code}).`
+        : `Official adult feature from studio ${studioResolved} (Catalog code ${code}).`,
       source: "javdb_live",
       magnets: magnets.length > 0 ? magnets : undefined,
     };
 
     return await translateJavItem(item);
   } catch (_err) {
-    console.error('[scrapeJavDb] Caught error during scrape:', (_err as Error)?.message || _err);
+    console.error("[scrapeJavDb] Caught error during scrape:", (_err as Error)?.message || _err);
     return resolveJavFallback(rawCode);
   }
 }

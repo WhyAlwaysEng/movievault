@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/client";
 import type { Media } from "@/lib/types";
 import { FolderSearch, FolderSync, Sparkles, Wand2 } from "lucide-react";
+import ActressAutocompleteInput from "@/components/media/ActressAutocompleteInput";
 
 type Tab = "shelf" | "scanner" | "search" | "manual";
 
@@ -252,14 +253,14 @@ function ShelfTab() {
                 >
                   {m.status === "published" ? "Hide" : "Publish"}
                 </button>
-                {m.id.startsWith("tmdb-") && (
+                {(m.id.startsWith("tmdb-") || m.type === "jav" || m.code || m.id.startsWith("jav-")) && (
                   <button
                     onClick={() => refetch(m)}
                     disabled={refreshing === m.id}
-                    title="Refresh metadata from TMDB"
+                    title="Refresh metadata from provider"
                     className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-mist transition hover:text-accent disabled:opacity-50"
                   >
-                    <RefreshCw className={`h-3.5 w-3.5 ${refreshing === m.id ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-3.5 w-3.5 ${refreshing === m.id ? "animate-spin text-accent" : ""}`} />
                   </button>
                 )}
                 <button
@@ -530,6 +531,7 @@ const EMPTY_FORM = {
 function ManualTab() {
   const pushToast = useUiStore((s) => s.pushToast);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [manualActresses, setManualActresses] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [fetchingJav, setFetchingJav] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -551,13 +553,17 @@ function ManualTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lookup failed");
+      const acts = (data.actresses && data.actresses.length > 0)
+        ? data.actresses
+        : (data.actress && data.actress.trim() ? [data.actress.trim()] : []);
+      setManualActresses(acts);
       setForm((prev) => ({
         ...prev,
         code: data.code,
         title: data.title,
         titleTh: data.title,
         studio: data.studio || prev.studio,
-        actresses: data.actress || prev.actresses,
+        actresses: acts.join(", "),
         overview: data.overview || prev.overview,
         tags: data.tags ? data.tags.join(", ") : prev.tags,
         year: String(data.year || 2024),
@@ -589,7 +595,9 @@ function ManualTab() {
         studio: form.studio.trim() || undefined,
         overview: form.overview.trim() || undefined,
         tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
-        actresses: form.actresses.split(",").map((a) => a.trim()).filter(Boolean),
+        actresses: manualActresses.length > 0
+          ? manualActresses
+          : form.actresses.split(",").map((a) => a.trim()).filter(Boolean),
         posterUrl: form.posterUrl.trim() || undefined,
         trailerUrl: form.trailerUrl.trim() || undefined,
         rating: form.rating ? Number(form.rating) : undefined,
@@ -656,14 +664,14 @@ function ManualTab() {
         <Field label="Studio / Maker">
           <input value={form.studio} onChange={(e) => set("studio", e.target.value)} placeholder="S1, Moodyz..." className={inputCls} />
         </Field>
-        <Field label="Actresses (comma separated)">
-          <input
-            value={form.actresses}
-            onChange={(e) => set("actresses", e.target.value)}
-            placeholder="Yua Mikami, Eimi Fukada..."
-            className={inputCls}
+        <div className="sm:col-span-2">
+          <ActressAutocompleteInput
+            label="Actresses / Cast"
+            selected={manualActresses}
+            onChange={setManualActresses}
+            placeholder="Search existing actress or type new name to add..."
           />
-        </Field>
+        </div>
         <Field label="Tags (comma separated)">
           <input value={form.tags} onChange={(e) => set("tags", e.target.value)} placeholder="solo, uncensored..." className={inputCls} />
         </Field>

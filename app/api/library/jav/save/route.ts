@@ -11,6 +11,8 @@ import {
   translateText,
   translateTags,
   translateActressName,
+  translateStudio,
+  translateDirectorName,
 } from "@/lib/utils/translate";
 
 export async function POST(req: NextRequest) {
@@ -22,9 +24,13 @@ export async function POST(req: NextRequest) {
     title: string;
     titleJa?: string;
     studio?: string;
+    studioJa?: string;
     label?: string;
+    labelJa?: string;
     series?: string;
+    seriesJa?: string;
     director?: string;
+    directorJa?: string;
     duration?: number;
     releaseDate?: string;
     actress?: string;
@@ -64,12 +70,17 @@ export async function POST(req: NextRequest) {
   }
 
   const now = Date.now();
-  const rawActressList = body.actresses && body.actresses.length > 0
+  const rawActressList = (body.actresses && body.actresses.length > 0
     ? body.actresses
-    : body.actress ? [body.actress] : [];
-  const actressList = rawActressList.map(translateActressName);
-  const actressName = actressList[0] || "Unknown";
-  const studio = body.studio || "Japan AV Studio";
+    : body.actress && body.actress.trim() ? [body.actress] : []
+  ).filter(Boolean);
+
+  const actressList = rawActressList.map(translateActressName).filter(Boolean);
+  const actressName = actressList[0] || "";
+  const studio = translateStudio(body.studio || "Japan AV Studio");
+  const label = body.label ? translateStudio(body.label) : studio;
+  const director = body.director ? translateDirectorName(body.director) : undefined;
+  const series = body.series ? await translateText(body.series) : undefined;
   const tags = translateTags(body.tags || [code, studio, "4K Ultra HD"]);
 
   // Ensure title is translated into English if it contains Japanese
@@ -77,9 +88,12 @@ export async function POST(req: NextRequest) {
   const englishTitle = containsJapanese(body.title)
     ? await translateText(body.title)
     : body.title;
+
+  const starringText = actressList.length > 0 ? `, starring ${actressList.join(", ")}` : "";
+  const seriesText = series ? ` as part of "${series}"` : "";
   const overview = body.overview && !containsJapanese(body.overview)
     ? body.overview
-    : `Official adult feature from studio ${studio}, starring ${actressList.join(", ") || actressName} (Catalog code ${code}).`;
+    : `Official adult feature from studio ${studio}${seriesText}${starringText} (Catalog code ${code}).`;
 
   const previewImages = (body.previewImages || []).filter(
     (url) =>
@@ -90,20 +104,27 @@ export async function POST(req: NextRequest) {
   );
 
   const extraMeta = JSON.stringify({
-    label: body.label || studio,
-    seriesName: body.series || undefined,
-    actressDetails: body.actressDetails
-      ? body.actressDetails.map(a => ({ ...a, name: translateActressName(a.name) }))
-      : (actressList.length ? actressList.map(name => ({ name })) : undefined),
+    label,
+    labelJa: body.labelJa || (body.label && containsJapanese(body.label) ? body.label : undefined),
+    maker: studio,
+    makerJa: body.studioJa || (body.studio && containsJapanese(body.studio) ? body.studio : undefined),
+    seriesName: series,
+    seriesJa: body.seriesJa || (body.series && containsJapanese(body.series) ? body.series : undefined),
+    directorJa: body.directorJa || (body.director && containsJapanese(body.director) ? body.director : undefined),
+    actressDetails: body.actressDetails && body.actressDetails.length > 0
+      ? body.actressDetails.map((a) => ({ ...a, name: translateActressName(a.name) }))
+      : (actressList.length ? actressList.map((name) => ({ name })) : undefined),
     previewImages,
     magnets: body.magnets || [],
   });
 
+  const tokenList = [studio, ...tags];
+  if (actressName) tokenList.push(actressName);
   const tokens = buildSearchTokens(
     englishTitle,
     { ja: originalTitle, en: code },
     code,
-    [actressName, studio, ...tags],
+    tokenList,
   ).join(" ");
 
   db.transaction(() => {
@@ -130,7 +151,7 @@ export async function POST(req: NextRequest) {
       body.year || 2024,
       studio,
       body.rating || 8.8,
-      body.director || null,
+      director || null,
       body.duration || 120,
       body.releaseDate || null,
       extraMeta,
@@ -164,7 +185,7 @@ export async function POST(req: NextRequest) {
       tagStmt.run(mediaId, t.trim());
     }
 
-    // Link Actresses
+    // Link Actresses only if non-empty
     if (body.actressDetails && body.actressDetails.length > 0) {
       setMediaActresses(mediaId, body.actressDetails, "JP");
     } else if (actressList.length > 0) {
@@ -174,7 +195,7 @@ export async function POST(req: NextRequest) {
 
   audit(session.uid, "library.save_jav", "media", mediaId, {
     code,
-    title: body.title,
+    title: englishTitle,
     actresses: actressList,
   });
 

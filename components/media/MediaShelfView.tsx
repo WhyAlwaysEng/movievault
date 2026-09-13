@@ -11,6 +11,7 @@ import {
   Film,
   CheckCircle2,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import type { Media } from "@/lib/types";
 import { useUiStore } from "@/lib/store";
@@ -22,6 +23,8 @@ interface MediaShelfViewProps {
   viewMode: ViewMode;
   onToggleStatus: (media: Media) => Promise<void>;
   onDelete: (media: Media) => Promise<void>;
+  onRefresh?: (media: Media) => Promise<void>;
+  onBatchRefresh?: (ids: string[]) => Promise<void>;
   onBatchPublish?: (ids: string[]) => Promise<void>;
   onBatchDraft?: (ids: string[]) => Promise<void>;
   onBatchDelete?: (ids: string[]) => Promise<void>;
@@ -34,6 +37,8 @@ export default function MediaShelfView({
   viewMode,
   onToggleStatus,
   onDelete,
+  onRefresh,
+  onBatchRefresh,
   onBatchPublish,
   onBatchDraft,
   onBatchDelete,
@@ -42,6 +47,7 @@ export default function MediaShelfView({
 }: MediaShelfViewProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [batchActionRunning, setBatchActionRunning] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const requestConfirm = useUiStore((s) => s.requestConfirm);
 
   const allSelected = items.length > 0 && selectedIds.length === items.length;
@@ -58,6 +64,27 @@ export default function MediaShelfView({
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const handleSingleRefresh = async (m: Media) => {
+    if (!onRefresh) return;
+    setRefreshingId(m.id);
+    try {
+      await onRefresh(m);
+    } finally {
+      setRefreshingId(null);
+    }
+  };
+
+  const handleBatchRefresh = async () => {
+    if (!onBatchRefresh || selectedIds.length === 0) return;
+    setBatchActionRunning(true);
+    try {
+      await onBatchRefresh(selectedIds);
+      setSelectedIds([]);
+    } finally {
+      setBatchActionRunning(false);
+    }
   };
 
   const handleBatchPublish = async () => {
@@ -136,6 +163,18 @@ export default function MediaShelfView({
 
         {selectedIds.length > 0 && (
           <div className="flex items-center gap-2">
+            {onBatchRefresh && (
+              <button
+                type="button"
+                onClick={handleBatchRefresh}
+                disabled={batchActionRunning}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 text-cyan-300 transition hover:bg-cyan-500/20 disabled:opacity-50"
+                title="Refresh metadata from provider for selected items"
+              >
+                <RefreshCw className={`h-3 w-3 ${batchActionRunning ? "animate-spin" : ""}`} />
+                <span>Refresh Selected</span>
+              </button>
+            )}
             {onBatchPublish && (
               <button
                 type="button"
@@ -229,6 +268,17 @@ export default function MediaShelfView({
                   </span>
 
                   <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition">
+                    {onRefresh && (
+                      <button
+                        type="button"
+                        onClick={() => handleSingleRefresh(m)}
+                        disabled={refreshingId === m.id}
+                        className="rounded p-1 text-mist hover:text-cyan-400 hover:bg-cyan-400/10 transition disabled:opacity-50"
+                        title="Refresh metadata from provider"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${refreshingId === m.id ? "animate-spin text-cyan-400" : ""}`} />
+                      </button>
+                    )}
                     <Link
                       href={`/media/${m.id}`}
                       className="rounded p-1 text-accent hover:bg-accent/10"
@@ -354,6 +404,17 @@ export default function MediaShelfView({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
+                  {onRefresh && (
+                    <button
+                      type="button"
+                      onClick={() => handleSingleRefresh(m)}
+                      disabled={refreshingId === m.id}
+                      title="Refresh metadata from provider"
+                      className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-mist transition hover:text-cyan-400 hover:border-cyan-500/30 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${refreshingId === m.id ? "animate-spin text-cyan-400" : ""}`} />
+                    </button>
+                  )}
                   <Link
                     href={`/media/${m.id}`}
                     className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/5 px-3 py-1.5 text-xs text-accent transition hover:bg-accent/20"
@@ -503,6 +564,17 @@ export default function MediaShelfView({
 
                     <td className="py-2.5 pr-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {onRefresh && (
+                          <button
+                            type="button"
+                            onClick={() => handleSingleRefresh(m)}
+                            disabled={refreshingId === m.id}
+                            className="rounded p-1 text-mist hover:text-cyan-400 hover:bg-cyan-400/10 transition disabled:opacity-50"
+                            title="Refresh metadata"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${refreshingId === m.id ? "animate-spin text-cyan-400" : ""}`} />
+                          </button>
+                        )}
                         <Link
                           href={`/media/${m.id}`}
                           className="rounded p-1 text-accent hover:bg-accent/10 transition"

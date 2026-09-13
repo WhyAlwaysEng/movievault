@@ -16,15 +16,29 @@ export function isJavCodeLike(query: string): boolean {
 
 /** Lowercased search tokens for the `searchTokens` array on media docs. */
 export function buildSearchTokens(
-  title: string,
+  titleOrTokens: string | string[],
   altTitles?: { th?: string; ja?: string; en?: string },
   code?: string,
   actors: string[] = [],
 ): string[] {
-  const parts = [title, altTitles?.th, altTitles?.ja, altTitles?.en];
-  if (code) parts.push(normalizeJavCode(code));
-  parts.push(...actors);
-  return Array.from(new Set(parts.filter(Boolean).map((p) => p!.toLowerCase())));
+  const parts: string[] = [];
+  if (Array.isArray(titleOrTokens)) {
+    parts.push(...titleOrTokens);
+  } else {
+    if (titleOrTokens) parts.push(titleOrTokens);
+    if (altTitles?.th) parts.push(altTitles.th);
+    if (altTitles?.ja) parts.push(altTitles.ja);
+    if (altTitles?.en) parts.push(altTitles.en);
+    if (code) parts.push(normalizeJavCode(code));
+    if (actors && actors.length > 0) parts.push(...actors);
+  }
+  return Array.from(
+    new Set(
+      parts
+        .filter((p): p is string => typeof p === "string" && Boolean(p.trim()))
+        .map((p) => p.toLowerCase().trim()),
+    ),
+  );
 }
 
 export function formatYear(year?: number): string {

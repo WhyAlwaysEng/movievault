@@ -32,30 +32,65 @@ export async function POST(req: NextRequest) {
     const now = Date.now();
 
     const previewImages = (item.previewImages || []).slice(0, 12);
+    let existingExtra: Record<string, unknown> = {};
+    try {
+      if (row.extra_meta) existingExtra = JSON.parse(row.extra_meta);
+    } catch {}
+
     const extraMeta = JSON.stringify({
+      ...existingExtra,
       label: item.label,
+      labelJa: item.labelJa || item.studioJa,
       maker: item.studio,
+      studioJa: item.studioJa,
       series: item.series,
+      seriesJa: item.seriesJa,
+      director: item.director,
+      directorJa: item.directorJa,
       censored: true,
-      actressDetails: item.actressDetails,
+      actressDetails: item.actressDetails || [],
       previewImages,
     });
 
+    const searchTokens = buildSearchTokens([
+      code,
+      item.title,
+      item.titleJa || "",
+      item.studio || "",
+      item.director || "",
+      ...item.actresses,
+      ...item.tags,
+    ]).join(" ");
+
     db.prepare(`
       UPDATE media SET
-        title = ?, title_ja = ?, studio = ?, director = ?,
-        runtime = ?, release_date = ?, rating = ?,
-        extra_meta = ?, updated_at = ?
+        title = ?,
+        title_ja = ?,
+        overview = ?,
+        studio = ?,
+        director = ?,
+        runtime = ?,
+        release_date = ?,
+        rating = ?,
+        extra_meta = ?,
+        search_tokens = ?,
+        poster_path = COALESCE(?, poster_path),
+        backdrop_path = COALESCE(?, backdrop_path),
+        updated_at = ?
       WHERE id = ?
     `).run(
       item.title,
       item.titleJa || null,
+      item.overview || null,
       item.studio || null,
       item.director || null,
       item.duration || null,
       item.releaseDate || null,
       item.rating || null,
       extraMeta,
+      searchTokens,
+      item.posterUrl || null,
+      item.backdropUrl || null,
       now,
       mediaId,
     );
@@ -65,8 +100,12 @@ export async function POST(req: NextRequest) {
     const insTag = db.prepare("INSERT OR IGNORE INTO media_tags (media_id, tag) VALUES (?, ?)");
     for (const t of item.tags) insTag.run(mediaId, t);
 
-    // Update actresses
-    setMediaActresses(mediaId, item.actresses);
+    // Update actresses with English names, Japanese aliases, and photos
+    setMediaActresses(
+      mediaId,
+      item.actressDetails && item.actressDetails.length > 0 ? item.actressDetails : item.actresses,
+      "JP",
+    );
 
     audit(session.uid, "library.refetch", "media", mediaId, { code });
     return NextResponse.json({ ok: true, media: rowToMedia(getMediaRow(mediaId)!) });

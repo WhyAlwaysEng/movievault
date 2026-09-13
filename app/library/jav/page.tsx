@@ -9,6 +9,7 @@ import {
   Lock,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -19,6 +20,7 @@ import {
   createMedia,
   deleteMedia,
   listAllMedia,
+  refetchMedia,
   saveDedicatedJav,
   searchDedicatedJav,
   updateMedia,
@@ -28,6 +30,7 @@ import type { Media } from "@/lib/types";
 import MediaViewSwitcher, { type ViewMode } from "@/components/media/MediaViewSwitcher";
 import MediaShelfView from "@/components/media/MediaShelfView";
 import MediaFilterBar, { type FilterState } from "@/components/media/MediaFilterBar";
+import ActressAutocompleteInput from "@/components/media/ActressAutocompleteInput";
 
 type Tab = "shelf" | "search" | "manual";
 
@@ -247,14 +250,75 @@ function JavShelfTab() {
     }
   };
 
+  const [refreshingAll, setRefreshingAll] = useState(false);
+
+  const handleRefresh = async (m: Media) => {
+    try {
+      const res = await refetchMedia(m.id);
+      pushToast(`Refreshed "${res.media.code || res.media.title}" with latest metadata`, "success");
+      load();
+    } catch (e) {
+      pushToast((e as Error).message, "error");
+    }
+  };
+
+  const handleBatchRefresh = async (ids: string[]) => {
+    let success = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await refetchMedia(id);
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    pushToast(
+      `Refreshed ${success} JAV item(s)${failed > 0 ? ` (${failed} failed)` : ""}`,
+      success > 0 ? "success" : "error",
+    );
+    load();
+  };
+
+  const handleRefreshAll = async () => {
+    if (items.length === 0) return;
+    const ok = await requestConfirm({
+      title: `รีเฟรชข้อมูล JAV ทั้งหมด (${items.length} เรื่อง)`,
+      message: `ระบบจะดึงข้อมูลล่าสุดจาก JAVDB และอัปเดตชื่อภาษาอังกฤษ ค่าย นักแสดง และแท็กทั้งหมดให้กับทั้ง ${items.length} เรื่องในคลัง JAV ยืนยันหรือไม่?`,
+      confirmText: "รีเฟรชทั้งหมด",
+      cancelText: "ยกเลิก",
+    });
+    if (!ok) return;
+    setRefreshingAll(true);
+    try {
+      await handleBatchRefresh(items.map((m) => m.id));
+    } finally {
+      setRefreshingAll(false);
+    }
+  };
+
   if (loading) return <div className="py-12 text-center text-sm text-mist">Loading JAV vault...</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <span className="text-xs text-mist">
-          Total <strong>{items.length}</strong> JAV titles in vault
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-mist">
+            Total <strong>{items.length}</strong> JAV titles in vault
+          </span>
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={handleRefreshAll}
+              disabled={refreshingAll}
+              className="flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs text-cyan-300 transition hover:bg-cyan-500/20 disabled:opacity-50"
+              title="Refresh all JAV titles to update English translations, studios, and actresses"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshingAll ? "animate-spin" : ""}`} />
+              <span>Refresh All Metadata</span>
+            </button>
+          )}
+        </div>
         <MediaViewSwitcher mode={viewMode} onChange={handleViewChange} />
       </div>
 
@@ -271,6 +335,8 @@ function JavShelfTab() {
         viewMode={viewMode}
         onToggleStatus={toggleStatus}
         onDelete={remove}
+        onRefresh={handleRefresh}
+        onBatchRefresh={handleBatchRefresh}
         onBatchPublish={handleBatchPublish}
         onBatchDraft={handleBatchDraft}
         onBatchDelete={handleBatchDelete}
@@ -289,6 +355,7 @@ function JavSearchTab() {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<JavSearchResult | null>(null);
+  const [selectedActresses, setSelectedActresses] = useState<string[]>([]);
 
   const searchJav = async () => {
     const q = codeQuery.trim();
@@ -302,6 +369,10 @@ function JavSearchTab() {
       const res = await searchDedicatedJav(q);
       if (res.ok && res.result) {
         setResult(res.result);
+        const acts = (res.result.actresses && res.result.actresses.length > 0)
+          ? res.result.actresses
+          : (res.result.actress && res.result.actress.trim() ? [res.result.actress.trim()] : []);
+        setSelectedActresses(acts);
         pushToast(`Fetched metadata for ${res.result.code}!`, "success");
       } else {
         pushToast(res.error || "No data found for this code", "error");
@@ -317,7 +388,12 @@ function JavSearchTab() {
     if (!result) return;
     setSaving(true);
     try {
-      const res = await saveDedicatedJav(result);
+      const payload = {
+        ...result,
+        actress: selectedActresses[0] || "",
+        actresses: selectedActresses,
+      };
+      const res = await saveDedicatedJav(payload);
       if (res.duplicate) {
         pushToast(`Code ${result.code} is already in vault`, "info");
       } else {
@@ -380,10 +456,20 @@ function JavSearchTab() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-200">
                     Studio: {result.studio}
+                    {result.studioJa && result.studioJa !== result.studio && (
+                      <span className="ml-1 text-[11px] text-mist/70 font-normal">({result.studioJa})</span>
+                    )}
                   </span>
-                  <span className="rounded bg-neon/15 px-2.5 py-1 text-xs font-semibold text-neon">
-                    Actress: {result.actress}
-                  </span>
+                  {result.series && (
+                    <span className="rounded bg-white/10 px-2.5 py-1 text-xs text-mist">
+                      Series: {result.series}
+                    </span>
+                  )}
+                  {result.director && (
+                    <span className="rounded bg-white/10 px-2.5 py-1 text-xs text-mist">
+                      Director: {result.director}
+                    </span>
+                  )}
                   <span className="rounded bg-white/10 px-2.5 py-1 text-xs text-mist font-mono">
                     Year {result.year}
                   </span>
@@ -392,10 +478,31 @@ function JavSearchTab() {
                   </span>
                 </div>
 
-                <h2 className="font-display text-lg font-bold text-white">{result.title}</h2>
-                {result.titleJa && (
-                  <p className="text-xs text-mist font-sans">{result.titleJa}</p>
-                )}
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">{result.title}</h2>
+                  {result.titleJa && result.titleJa !== result.title && (
+                    <p className="text-xs text-rose-300/80 font-sans mt-0.5">🇯🇵 {result.titleJa}</p>
+                  )}
+                </div>
+
+                {/* Actresses / Cast Autocomplete Input */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold uppercase tracking-wider text-neon">
+                      Actresses / Cast ({selectedActresses.length})
+                    </span>
+                    {selectedActresses.length === 0 && (
+                      <span className="text-[11px] text-amber-300 font-medium">
+                        (No actress detected — search or type name below to add manually)
+                      </span>
+                    )}
+                  </div>
+                  <ActressAutocompleteInput
+                    selected={selectedActresses}
+                    onChange={setSelectedActresses}
+                    placeholder="Search existing actress or type new name to add..."
+                  />
+                </div>
 
                 <p className="text-xs leading-relaxed text-slate-300">{result.overview}</p>
 
@@ -435,13 +542,13 @@ function ManualJavTab() {
     title: "",
     titleJa: "",
     studio: "",
-    actresses: "",
     tags: "",
     overview: "",
     posterUrl: "",
     streamUrl: "",
     rating: "8.8",
   });
+  const [manualActresses, setManualActresses] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
@@ -459,8 +566,8 @@ function ManualJavTab() {
         title: form.title.trim(),
         titleJa: form.titleJa.trim() || undefined,
         studio: form.studio.trim() || undefined,
-        actress: form.actresses.split(",")[0]?.trim() || undefined,
-        actresses: form.actresses.split(",").map((a) => a.trim()).filter(Boolean),
+        actress: manualActresses[0] || undefined,
+        actresses: manualActresses,
         tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
         overview: form.overview.trim() || undefined,
         posterUrl: form.posterUrl.trim() || undefined,
@@ -499,11 +606,18 @@ function ManualJavTab() {
           <label className="mb-1 block text-xs text-mist">Japanese Title (Optional)</label>
           <input value={form.titleJa} onChange={(e) => set("titleJa", e.target.value)} placeholder="日本語タイトル" className={inputCls} />
         </div>
-        <div>
-          <label className="mb-1 block text-xs text-mist">Actresses (comma separated)</label>
-          <input value={form.actresses} onChange={(e) => set("actresses", e.target.value)} placeholder="Yua Mikami, Eimi Fukada..." className={inputCls} />
+
+        {/* Actress Autocomplete Input */}
+        <div className="sm:col-span-2">
+          <ActressAutocompleteInput
+            label="Actresses / Cast (Autocomplete & Filter)"
+            selected={manualActresses}
+            onChange={setManualActresses}
+            placeholder="Type actress name to search existing in vault or add new..."
+          />
         </div>
-        <div>
+
+        <div className="sm:col-span-2">
           <label className="mb-1 block text-xs text-mist">Tags (comma separated)</label>
           <input value={form.tags} onChange={(e) => set("tags", e.target.value)} placeholder="4K, Exclusive..." className={inputCls} />
         </div>

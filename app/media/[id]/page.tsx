@@ -24,6 +24,7 @@ import { isFirebaseConfigured } from "@/lib/firebase";
 import MovieDetailView from "@/components/media/MovieDetailView";
 import SeriesDetailView from "@/components/media/SeriesDetailView";
 import JavDetailView from "@/components/media/JavDetailView";
+import ActressAutocompleteInput from "@/components/media/ActressAutocompleteInput";
 
 const STATUS_OPTIONS = ["draft", "published", "flagged"] as const;
 
@@ -148,7 +149,7 @@ export default function MediaDetailPage() {
         media={media}
         canEdit={canEdit}
         onEdit={() => setEditing(true)}
-        onRefresh={media.code ? handleRefresh : undefined}
+        onRefresh={(media.code || media.id.startsWith("jav-")) ? handleRefresh : undefined}
         refreshing={refreshing}
       />
     );
@@ -194,7 +195,6 @@ function EditForm({ media, onCancel, onSaved }: EditFormProps) {
   const [status, setStatus] = useState<Media["status"]>(media.status);
   const [tags, setTags] = useState(media.tags.join(", "));
   const [actresses, setActresses] = useState<string[]>(media.actors);
-  const [newActress, setNewActress] = useState("");
   const [sources, setSources] = useState<MediaSource[]>(media.sources);
 
   const save = async () => {
@@ -372,50 +372,16 @@ function EditForm({ media, onCancel, onSaved }: EditFormProps) {
       </div>
 
       {/* actresses editor — syncs to actress pages */}
-      <div className="glass card-surface p-5">
-        <h2 className="font-display mb-3 text-sm font-bold tracking-wide text-white">
+      <div className="glass card-surface p-5 space-y-3">
+        <h2 className="font-display text-sm font-bold tracking-wide text-white">
           Cast & Actresses ({actresses.length})
         </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          {actresses.map((a) => (
-            <span key={a} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200">
-              {a}
-              <button
-                onClick={() => setActresses((arr) => arr.filter((x) => x !== a))}
-                className="text-mist transition hover:text-red-300"
-                aria-label="Delete"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="mt-3 flex max-w-md gap-2">
-          <input
-            value={newActress}
-            onChange={(e) => setNewActress(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newActress.trim()) {
-                setActresses((arr) => (arr.includes(newActress.trim()) ? arr : [...arr, newActress.trim()]));
-                setNewActress("");
-              }
-            }}
-            placeholder="Type cast name and press Enter"
-            className={inputCls}
-          />
-          <button
-            onClick={() => {
-              if (newActress.trim()) {
-                setActresses((arr) => (arr.includes(newActress.trim()) ? arr : [...arr, newActress.trim()]));
-                setNewActress("");
-              }
-            }}
-            className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 transition hover:bg-white/5"
-          >
-            Add
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-mist">
+        <ActressAutocompleteInput
+          selected={actresses}
+          onChange={setActresses}
+          placeholder="Search existing actress/cast or type new name to add..."
+        />
+        <p className="text-xs text-mist">
           Names added will automatically register in the database and appear in actress profiles.
         </p>
       </div>

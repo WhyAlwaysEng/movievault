@@ -203,6 +203,7 @@ export interface JavSearchResult {
   title: string;
   titleJa?: string;
   studio: string;
+  studioJa?: string;
   label?: string;
   series?: string;
   director?: string;
@@ -290,7 +291,7 @@ export interface ActressFilterOptions {
 }
 
 export function listActresses(
-  opts: { q?: string; category?: "all" | "jav" | "film"; mediaId?: string; country?: string } = {},
+  opts: { q?: string; category?: "all" | "jav" | "film"; mediaId?: string; country?: string; limit?: number } = {},
 ): Promise<{
   items: ActressProfile[];
   counts?: { all: number; jav: number; film: number };
@@ -301,6 +302,7 @@ export function listActresses(
   if (opts.category && opts.category !== "all") p.set("category", opts.category);
   if (opts.mediaId && opts.mediaId !== "all") p.set("mediaId", opts.mediaId);
   if (opts.country && opts.country !== "all") p.set("country", opts.country);
+  if (opts.limit) p.set("limit", String(opts.limit));
   const qs = p.toString();
   return api(`/api/actresses${qs ? `?${qs}` : ""}`);
 }
