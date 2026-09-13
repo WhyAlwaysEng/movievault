@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Airplay,
+  AlertCircle,
   Camera,
   Cast,
   Check,
@@ -19,6 +20,7 @@ import {
   Subtitles,
   Trash2,
   Upload,
+  VideoOff,
   Volume2,
   VolumeX,
   X,
@@ -30,10 +32,10 @@ import {
   loadResume,
   saveResume,
 } from "@/lib/utils/playback";
-import { PUBLIC_TEST_STREAM } from "@/lib/constants";
 import { usePlayerStore, useUiStore } from "@/lib/store";
 import { fileToVttUrl } from "@/lib/utils/subtitles";
 import { useCast } from "@/lib/utils/cast";
+import Link from "next/link";
 
 interface VideoPlayerProps {
   mediaId: string;
@@ -49,10 +51,6 @@ function formatTime(seconds: number): string {
     ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
     : `${m}:${String(s).padStart(2, "0")}`;
 }
-
-const FALLBACK_SOURCES: MediaSource[] = [
-  { label: "Public test stream (HLS)", url: PUBLIC_TEST_STREAM },
-];
 
 export default function VideoPlayer({ mediaId, sources = [] }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -88,11 +86,11 @@ export default function VideoPlayer({ mediaId, sources = [] }: VideoPlayerProps)
   const [selectedSubTrack, setSelectedSubTrack] = useState<string>("custom");
 
   const resolved = useMemo(
-    () => (sources.length > 0 ? sources : FALLBACK_SOURCES),
+    () => sources.filter((s) => s.url && s.url.trim()),
     [sources],
   );
-  const source = resolved[Math.min(sourceIndex, resolved.length - 1)];
-  const hasMoreSources = sourceIndex + 1 < resolved.length;
+  const source = resolved.length > 0 ? resolved[Math.min(sourceIndex, resolved.length - 1)] : null;
+  const hasMoreSources = resolved.length > 0 && sourceIndex + 1 < resolved.length;
 
   const isCurrentEmbed = useMemo(() => {
     if (!source?.url) return false;
@@ -121,6 +119,7 @@ export default function VideoPlayer({ mediaId, sources = [] }: VideoPlayerProps)
   });
 
   const failOver = useCallback(() => {
+    if (resolved.length === 0) return;
     if (sourceIndex + 1 < resolved.length) {
       pushToast(
         `Primary server issue — switching to next server (${resolved.length - sourceIndex - 1} remaining)`,
@@ -141,10 +140,10 @@ export default function VideoPlayer({ mediaId, sources = [] }: VideoPlayerProps)
   // Attach HLS.js or native HLS (Safari) per source index (§6.1–6.2)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !source) return;
     setFailed(false);
 
-    const currentSource = resolved[Math.min(sourceIndex, resolved.length - 1)];
+    const currentSource = source;
     const url = currentSource.url;
     const isEmbedUrl =
       currentSource.kind === "embed" ||
@@ -502,6 +501,28 @@ export default function VideoPlayer({ mediaId, sources = [] }: VideoPlayerProps)
   };
 
   const pct = duration > 0 ? (progress / duration) * 100 : 0;
+
+  if (!source || resolved.length === 0) {
+    return (
+      <div className="glass-strong relative flex flex-col items-center justify-center rounded-2xl border border-white/[0.08] p-12 text-center shadow-glass aspect-video w-full bg-obsidian/60">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-white/5 border border-white/10 text-mist mb-4">
+          <VideoOff className="h-8 w-8 text-mist" />
+        </div>
+        <h3 className="font-display text-lg font-bold text-white mb-1">
+          ยังไม่มีลิ้งก์สำหรับรับชม (No Stream Available)
+        </h3>
+        <p className="max-w-md text-sm text-mist mb-6">
+          เรื่องนี้ยังไม่ได้ใส่ลิ้งก์วิดีโอ หรือเซิร์ฟเวอร์ยังไม่พร้อมใช้งาน
+        </p>
+        <Link
+          href={`/media/${mediaId}`}
+          className="flex items-center gap-2 rounded-xl bg-accent/20 border border-accent/40 px-5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/30"
+        >
+          <span>ไปที่หน้ารายละเอียดเพื่อเพิ่มลิ้งก์ (Edit Media)</span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

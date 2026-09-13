@@ -376,13 +376,29 @@ export default function JavDetailView({
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 pt-3">
-              <Link
-                href={`/watch/${media.id}`}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-neon via-pink-600 to-accent px-6 py-3 text-sm font-bold text-white shadow-neon-pink transition hover:brightness-110 active:scale-95"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                Watch Full Video
-              </Link>
+              {media.sources && media.sources.length > 0 ? (
+                <Link
+                  href={`/watch/${media.id}`}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-neon via-pink-600 to-accent px-6 py-3 text-sm font-bold text-white shadow-neon-pink transition hover:brightness-110 active:scale-95"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  Watch Full Video ({media.sources.length})
+                </Link>
+              ) : canEdit ? (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20"
+                >
+                  <Pencil className="h-4 w-4" />
+                  + เพิ่มลิงก์รับชม (Add Stream Link)
+                </button>
+              ) : (
+                <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-mist">
+                  <Play className="h-4 w-4 opacity-40" />
+                  ยังไม่มีลิงก์รับชม
+                </span>
+              )}
 
               <button
                 type="button"

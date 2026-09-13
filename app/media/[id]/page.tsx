@@ -320,55 +320,85 @@ function EditForm({ media, onCancel, onSaved }: EditFormProps) {
 
       {/* sources editor */}
       <div className="glass card-surface p-5">
-        <h2 className="font-display mb-3 text-sm font-bold tracking-wide text-white">
-          Streaming Links (Servers) — {sources.length} items
-        </h2>
-        <div className="space-y-2.5">
-          {sources.map((s, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2">
-              <input
-                value={s.label}
-                onChange={(e) => setSources((arr) => arr.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
-                placeholder="Server Name"
-                className={`${inputCls} w-36`}
-              />
-              <select
-                value={s.kind ?? "hls"}
-                onChange={(e) =>
-                  setSources((arr) =>
-                    arr.map((x, j) => (j === i ? { ...x, kind: e.target.value as MediaSource["kind"] } : x)),
-                  )
-                }
-                className={`${inputCls} w-24`}
-              >
-                <option value="hls">HLS</option>
-                <option value="embed">Embed</option>
-                <option value="local">Local File</option>
-                <option value="other">Other</option>
-              </select>
-              <input
-                value={s.url}
-                onChange={(e) => setSources((arr) => arr.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
-                placeholder="https://…/playlist.m3u8 or /api/files/…"
-                className={`${inputCls} min-w-40 flex-1 font-mono text-xs`}
-              />
-              <button
-                onClick={() => setSources((arr) => arr.filter((_, j) => j !== i))}
-                className="rounded-lg border border-white/10 p-2 text-mist transition hover:border-red-400/50 hover:text-red-300"
-                aria-label="Delete"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-display text-sm font-bold tracking-wide text-white">
+              Streaming Links / Video Sources ({sources.length})
+            </h2>
+            <p className="text-xs text-mist mt-0.5">
+              รองรับลิงก์สตรีมแบบ Embed (เช่น Turbovid, JavHD Embed, Playmogo) หรือ HLS (.m3u8)
+            </p>
+          </div>
           <button
-            onClick={() => setSources((arr) => [...arr, { label: `Server ${arr.length + 1}`, url: "", kind: "hls" }])}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-xs text-mist transition hover:border-accent/50 hover:text-accent"
+            type="button"
+            onClick={() => setSources((arr) => [...arr, { label: `Server ${arr.length + 1}`, url: "", kind: "embed" }])}
+            className="flex items-center gap-1.5 rounded-lg bg-accent/20 border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/30"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Server
           </button>
         </div>
+
+        {sources.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-mist">
+            ยังไม่มีเซิร์ฟเวอร์สตรีมมิ่ง กด &quot;Add Server&quot; เพื่อเพิ่มลิงก์วิดีโอ (เช่น Embed iframe หรือ .m3u8)
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sources.map((s, i) => (
+              <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+                <input
+                  value={s.label}
+                  onChange={(e) => setSources((arr) => arr.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                  placeholder="Server Name (e.g. JavHD Embed)"
+                  className={`${inputCls} sm:w-44 text-xs`}
+                />
+                <select
+                  value={s.kind ?? "embed"}
+                  onChange={(e) =>
+                    setSources((arr) =>
+                      arr.map((x, j) => (j === i ? { ...x, kind: e.target.value as MediaSource["kind"] } : x)),
+                    )
+                  }
+                  className={`${inputCls} sm:w-28 text-xs`}
+                >
+                  <option value="embed">Embed (Iframe)</option>
+                  <option value="hls">HLS (.m3u8)</option>
+                  <option value="local">Local File</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  value={s.url}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSources((arr) =>
+                      arr.map((x, j) => {
+                        if (j !== i) return x;
+                        // Auto-detect kind if not explicitly set
+                        let detectedKind = x.kind;
+                        const lower = val.toLowerCase();
+                        if (lower.endsWith(".m3u8")) detectedKind = "hls";
+                        else if (lower.includes("/embed") || lower.includes("/e/") || lower.includes("/t/") || lower.includes("playmogo") || lower.includes("turbovid") || lower.includes("javhd")) detectedKind = "embed";
+                        return { ...x, url: val, kind: detectedKind };
+                      })
+                    );
+                  }}
+                  placeholder="https://... (Embed URL or .m3u8)"
+                  className={`${inputCls} flex-1 font-mono text-xs`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSources((arr) => arr.filter((_, j) => j !== i))}
+                  className="self-center sm:self-auto rounded-lg border border-white/10 p-2 text-mist transition hover:border-red-400/50 hover:text-red-300"
+                  aria-label="Delete"
+                  title="Remove server"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* actresses editor — syncs to actress pages */}

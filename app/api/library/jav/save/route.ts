@@ -162,12 +162,13 @@ export async function POST(req: NextRequest) {
       now,
     );
 
-    // Default stream source
-    const stream = body.streamUrl?.trim() || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-    db.prepare(`
-      INSERT INTO media_sources (media_id, label, url, kind, healthy, sort)
-      VALUES (?, 'Main Server (4K Master)', ?, 'hls', 1, 0)
-    `).run(mediaId, stream);
+    // Stream source (only if explicitly provided)
+    if (body.streamUrl?.trim()) {
+      db.prepare(`
+        INSERT INTO media_sources (media_id, label, url, kind, healthy, sort)
+        VALUES (?, 'Main Server', ?, 'hls', 1, 0)
+      `).run(mediaId, body.streamUrl.trim());
+    }
 
     // Preview images
     if (previewImages.length > 0) {
