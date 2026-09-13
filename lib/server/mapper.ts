@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { fileUrl } from "@/lib/storage";
 import type { Media, MediaSource, SeriesEpisode, SeriesSeason } from "@/lib/types";
+import { containsJapanese, translateActressName } from "@/lib/utils/translate";
 
 interface MediaRow {
   id: string;
@@ -82,10 +83,14 @@ export function rowToMedia(row: MediaRow): Media {
     releaseDate: row.release_date ?? (extraMeta.releaseDate as string | undefined),
     tagline: row.tagline ?? (extraMeta.tagline as string | undefined),
     network: row.network ?? (extraMeta.network as string | undefined),
-    castDetails:
+    castDetails: (
       (extraMeta.castDetails as Media["castDetails"]) ||
-      (extraMeta.actressDetails as Media["castDetails"]) ||
-      undefined,
+      (extraMeta.actressDetails as Media["castDetails"])
+    )?.map((c) => ({
+      ...c,
+      name: containsJapanese(c.name) ? translateActressName(c.name) || c.name : c.name,
+      character: c.character || (containsJapanese(c.name) ? c.name : undefined),
+    })),
     crewDetails: (extraMeta.crewDetails as Media["crewDetails"]) || undefined,
     extraMeta,
     seasons: row.type === "series" ? seasonsOf(mediaId) : undefined,
@@ -129,7 +134,7 @@ export function actorsOf(mediaId: string): string[] {
        WHERE ma.media_id = ? ORDER BY a.name`,
     )
     .all(mediaId) as Array<{ name: string }>;
-  return rows.map((r) => r.name);
+  return rows.map((r) => (containsJapanese(r.name) ? translateActressName(r.name) || r.name : r.name));
 }
 
 export function imagesOf(mediaId: string, kind: "poster" | "backdrop" | "preview"): string[] {
@@ -274,7 +279,8 @@ export function rowsToMedia(rows: MediaRow[]): Media[] {
   const actorsMap = new Map<string, string[]>();
   for (const a of actorRows) {
     const list = actorsMap.get(a.media_id) || [];
-    list.push(a.name);
+    const enName = containsJapanese(a.name) ? translateActressName(a.name) || a.name : a.name;
+    list.push(enName);
     actorsMap.set(a.media_id, list);
   }
 
@@ -339,10 +345,14 @@ export function rowsToMedia(rows: MediaRow[]): Media[] {
       releaseDate: row.release_date ?? (extraMeta.releaseDate as string | undefined),
       tagline: row.tagline ?? (extraMeta.tagline as string | undefined),
       network: row.network ?? (extraMeta.network as string | undefined),
-      castDetails:
+      castDetails: (
         (extraMeta.castDetails as Media["castDetails"]) ||
-        (extraMeta.actressDetails as Media["castDetails"]) ||
-        undefined,
+        (extraMeta.actressDetails as Media["castDetails"])
+      )?.map((c) => ({
+        ...c,
+        name: containsJapanese(c.name) ? translateActressName(c.name) || c.name : c.name,
+        character: c.character || (containsJapanese(c.name) ? c.name : undefined),
+      })),
       crewDetails: (extraMeta.crewDetails as Media["crewDetails"]) || undefined,
       extraMeta,
       seasons: row.type === "series" ? seasonsOf(mediaId) : undefined,

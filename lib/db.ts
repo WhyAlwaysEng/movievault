@@ -227,4 +227,73 @@ try {
   // Ignore if already upgraded
 }
 
+// Auto-migrate Japanese actress names in database to English Romaji
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { containsJapanese, translateActressName } = require("@/lib/utils/translate");
+  const actressRows = db.prepare("SELECT id, name, aliases FROM actresses").all() as Array<{
+    id: string;
+    name: string;
+    aliases: string;
+  }>;
+
+  for (const a of actressRows) {
+    if (containsJapanese(a.name)) {
+      const en = translateActressName(a.name);
+      if (en && en !== a.name) {
+        let aliases: string[] = [];
+        try {
+          aliases = JSON.parse(a.aliases || "[]");
+        } catch {}
+        if (!aliases.includes(a.name)) aliases.push(a.name);
+        db.prepare("UPDATE actresses SET name = ?, aliases = ?, updated_at = ? WHERE id = ?").run(
+          en,
+          JSON.stringify(aliases),
+          Date.now(),
+          a.id,
+        );
+      }
+    }
+  }
+
+  // Also migrate Japanese cast names in media extra_meta
+  const mediaWithExtra = db
+    .prepare("SELECT id, extra_meta FROM media WHERE type = 'jav' AND extra_meta LIKE '%actressDetails%'")
+    .all() as Array<{
+    id: string;
+    extra_meta: string;
+  }>;
+
+  for (const m of mediaWithExtra) {
+    try {
+      const extra = JSON.parse(m.extra_meta);
+      if (Array.isArray(extra.actressDetails) && extra.actressDetails.length > 0) {
+        let changed = false;
+        const updatedDetails = extra.actressDetails.map(
+          (det: { name: string; character?: string; avatarUrl?: string }) => {
+            if (det.name && containsJapanese(det.name)) {
+              const en = translateActressName(det.name);
+              if (en && en !== det.name) {
+                changed = true;
+                return {
+                  ...det,
+                  name: en,
+                  character: det.character || det.name,
+                };
+              }
+            }
+            return det;
+          },
+        );
+        if (changed) {
+          extra.actressDetails = updatedDetails;
+          db.prepare("UPDATE media SET extra_meta = ? WHERE id = ?").run(JSON.stringify(extra), m.id);
+        }
+      }
+    } catch {}
+  }
+} catch (_e) {
+  // Ignore migration errors
+}
+
 export { db };

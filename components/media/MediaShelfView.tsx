@@ -17,6 +17,7 @@ import type { Media } from "@/lib/types";
 import { useUiStore } from "@/lib/store";
 import MediaCard from "@/components/media/MediaCard";
 import type { ViewMode } from "@/components/media/MediaViewSwitcher";
+import { containsJapanese, translateActressName } from "@/lib/utils/translate";
 
 interface MediaShelfViewProps {
   items: Media[];
@@ -367,7 +368,10 @@ export default function MediaShelfView({
                     {m.studio && <span className="text-slate-300">{m.studio}</span>}
                     {m.actors.length > 0 && (
                       <span className="text-neon/90 font-medium">
-                        {m.actors.slice(0, 3).join(", ")}
+                        {m.actors
+                          .map((a) => (containsJapanese(a) ? translateActressName(a) || a : a))
+                          .slice(0, 3)
+                          .join(", ")}
                         {m.actors.length > 3 ? "..." : ""}
                       </span>
                     )}

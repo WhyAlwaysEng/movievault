@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { fileUrl } from "@/lib/storage";
 import { cachedAsync } from "@/lib/server/cache";
+import { containsJapanese, translateActressName } from "@/lib/utils/translate";
 
 // Actress list with category filter ("all" | "jav" | "film") and per-actress
 // media-type badges (which categories an actress appears in).
@@ -124,21 +125,32 @@ export async function GET(req: NextRequest) {
         media: mediaFilterRows,
         countries: countryFilterRows.map((c) => c.country),
       },
-      items: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        aliases: JSON.parse((r.aliases as string) || "[]"),
-        country: r.country ?? null,
-        studio: r.studio ?? null,
-        bio: r.bio ?? null,
-        mediaCount: (r.media_count as number) ?? 0,
-        types: ((r.types as string) ?? "").split(",").filter(Boolean),
-        photoUrl: r.photo_path
-          ? ((r.photo_path as string).startsWith("http")
-              ? (r.photo_path as string)
-              : fileUrl("actresses", r.id as string, r.photo_path as string))
-          : "",
-      })),
+      items: rows.map((r) => {
+        const rawName = (r.name as string) || "";
+        const enName = containsJapanese(rawName) ? translateActressName(rawName) || rawName : rawName;
+        let aliases: string[] = [];
+        try {
+          aliases = JSON.parse((r.aliases as string) || "[]");
+        } catch {}
+        if (containsJapanese(rawName) && rawName !== enName && !aliases.includes(rawName)) {
+          aliases.push(rawName);
+        }
+        return {
+          id: r.id,
+          name: enName,
+          aliases,
+          country: r.country ?? null,
+          studio: r.studio ?? null,
+          bio: r.bio ?? null,
+          mediaCount: (r.media_count as number) ?? 0,
+          types: ((r.types as string) ?? "").split(",").filter(Boolean),
+          photoUrl: r.photo_path
+            ? ((r.photo_path as string).startsWith("http")
+                ? (r.photo_path as string)
+                : fileUrl("actresses", r.id as string, r.photo_path as string))
+            : "",
+        };
+      }),
     };
   };
 

@@ -715,6 +715,9 @@ export function translateActressName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "";
 
+  // If already pure ASCII / non-Japanese, return
+  if (!containsJapanese(trimmed)) return trimmed;
+
   // 1. Direct dictionary match
   if (JAV_ACTRESS_MAP[trimmed]) return JAV_ACTRESS_MAP[trimmed];
 
@@ -725,17 +728,17 @@ export function translateActressName(name: string): string {
       res = res.replaceAll(ja, en);
     }
   }
-  if (!containsJapanese(res)) return res.trim();
+  if (!containsJapanese(res)) return capitalizeWords(res.trim());
 
   // 3. Romanize via Kanji Name decomposition
-  const kanjiRom = romanizeKanjiName(res);
-  if (!containsJapanese(kanjiRom)) return capitalizeWords(kanjiRom);
+  res = romanizeKanjiName(res);
+  if (!containsJapanese(res)) return capitalizeWords(res.trim());
 
-  // 4. Kana to Romaji
-  const kanaRom = kanaToRomaji(res);
-  if (!containsJapanese(kanaRom)) return capitalizeWords(kanaRom);
+  // 4. Kana to Romaji on remaining parts
+  res = kanaToRomaji(res);
+  if (!containsJapanese(res)) return capitalizeWords(res.trim());
 
-  return res.trim();
+  return capitalizeWords(res.trim());
 }
 
 /**

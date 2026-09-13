@@ -9,6 +9,7 @@ import type { Media } from "@/lib/types";
 import { useUiStore } from "@/lib/store";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { loadResume, type ResumePosition } from "@/lib/utils/playback";
+import { containsJapanese, translateActressName } from "@/lib/utils/translate";
 
 const TYPE_LABEL: Record<Media["type"], string> = {
   movie: "MOVIE",
@@ -67,7 +68,8 @@ export default function MediaCard({ media }: { media: Media }) {
     ? media.title.replace(new RegExp(`^[\\[【\\(]?\\s*${media.code}\\s*[\\]】\\)]?\\s*`, "i"), "").trim() || media.title
     : media.title;
 
-  const leadActor = media.actors && media.actors.length > 0 ? media.actors[0] : null;
+  const rawLead = media.actors && media.actors.length > 0 ? media.actors[0] : null;
+  const leadActor = rawLead ? (containsJapanese(rawLead) ? translateActressName(rawLead) || rawLead : rawLead) : null;
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
