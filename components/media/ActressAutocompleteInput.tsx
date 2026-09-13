@@ -81,8 +81,14 @@ export default function ActressAutocompleteInput({
     const trimmed = rawName.trim();
     if (!trimmed) return;
 
-    // Convert Japanese name to English Romaji if needed
-    const finalName = containsJapanese(trimmed) ? translateActressName(trimmed) || trimmed : trimmed;
+    // Check if matches an existing actress profile (by name or alias)
+    const matched = allActresses.find(
+      (a) =>
+        a.name.toLowerCase() === trimmed.toLowerCase() ||
+        a.aliases?.some((al) => al.toLowerCase() === trimmed.toLowerCase()),
+    );
+
+    const finalName = matched ? matched.name : trimmed;
 
     if (!selected.includes(finalName)) {
       if (maxItems && selected.length >= maxItems) {

@@ -65,21 +65,6 @@ export async function GET(
 
     if (!row) return null;
 
-    // If stored name is Japanese and English name is available, promote English as primary
-    if (containsJapanese(row.name) && nameEn && !containsJapanese(nameEn)) {
-      const aliases: string[] = JSON.parse(row.aliases || "[]");
-      if (!aliases.includes(row.name)) aliases.push(row.name);
-      if (nameJa && !aliases.includes(nameJa)) aliases.push(nameJa);
-      db.prepare("UPDATE actresses SET name = ?, aliases = ?, updated_at = ? WHERE id = ?").run(
-        nameEn,
-        JSON.stringify(aliases),
-        Date.now(),
-        row.id,
-      );
-      row.name = nameEn;
-      row.aliases = JSON.stringify(aliases);
-    }
-
     const works = db
       .prepare(
         `SELECT DISTINCT m.* FROM media m

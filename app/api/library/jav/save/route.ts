@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     : body.actress && body.actress.trim() ? [body.actress] : []
   ).filter(Boolean);
 
-  const actressList = rawActressList.map(translateActressName).filter(Boolean);
+  const actressList = rawActressList.map((a) => a.trim()).filter(Boolean);
   const actressName = actressList[0] || "";
   const studio = translateStudio(body.studio || "Japan AV Studio");
   const label = body.label ? translateStudio(body.label) : studio;

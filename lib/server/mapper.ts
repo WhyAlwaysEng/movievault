@@ -83,18 +83,64 @@ export function rowToMedia(row: MediaRow): Media {
     releaseDate: row.release_date ?? (extraMeta.releaseDate as string | undefined),
     tagline: row.tagline ?? (extraMeta.tagline as string | undefined),
     network: row.network ?? (extraMeta.network as string | undefined),
-    castDetails: (
-      (extraMeta.castDetails as Media["castDetails"]) ||
-      (extraMeta.actressDetails as Media["castDetails"])
-    )?.map((c) => ({
-      ...c,
-      name: containsJapanese(c.name) ? translateActressName(c.name) || c.name : c.name,
-      character: c.character || (containsJapanese(c.name) ? c.name : undefined),
-    })),
+    castDetails: castDetailsOf(mediaId, extraMeta),
     crewDetails: (extraMeta.crewDetails as Media["crewDetails"]) || undefined,
     extraMeta,
     seasons: row.type === "series" ? seasonsOf(mediaId) : undefined,
   };
+}
+
+export function castDetailsOf(mediaId: string, extraMeta: Record<string, unknown>): Media["castDetails"] {
+  const dbActors = db
+    .prepare(
+      `SELECT a.id, a.name, a.aliases, a.photo_path FROM media_actors ma
+       JOIN actresses a ON a.id = ma.actress_id
+       WHERE ma.media_id = ? ORDER BY a.name`,
+    )
+    .all(mediaId) as Array<{ id: string; name: string; aliases: string; photo_path: string | null }>;
+
+  const metaList = (
+    (extraMeta.castDetails as Media["castDetails"]) ||
+    (extraMeta.actressDetails as Media["castDetails"]) ||
+    []
+  );
+
+  if (dbActors.length > 0) {
+    return dbActors.map((a) => {
+      let aliases: string[] = [];
+      try {
+        aliases = JSON.parse(a.aliases || "[]");
+      } catch {}
+
+      const jpName = aliases.find((alias) => containsJapanese(alias));
+      const matchedMeta = metaList.find(
+        (m) =>
+          m.name.toLowerCase() === a.name.toLowerCase() ||
+          aliases.some((al) => al.toLowerCase() === m.name.toLowerCase()),
+      );
+
+      const avatar = a.photo_path
+        ? resolveImageUrl("actresses", a.id, a.photo_path)
+        : (matchedMeta?.avatarUrl || matchedMeta?.profileUrl);
+
+      return {
+        name: a.name,
+        character: !containsJapanese(a.name) && jpName ? jpName : undefined,
+        avatarUrl: avatar,
+        profileUrl: avatar,
+      };
+    });
+  }
+
+  if (metaList.length > 0) {
+    return metaList.map((c) => ({
+      ...c,
+      name: c.name,
+      character: c.character,
+    }));
+  }
+
+  return undefined;
 }
 
 export function sourcesOf(mediaId: string): MediaSource[] {
@@ -134,7 +180,7 @@ export function actorsOf(mediaId: string): string[] {
        WHERE ma.media_id = ? ORDER BY a.name`,
     )
     .all(mediaId) as Array<{ name: string }>;
-  return rows.map((r) => (containsJapanese(r.name) ? translateActressName(r.name) || r.name : r.name));
+  return rows.map((r) => r.name);
 }
 
 export function imagesOf(mediaId: string, kind: "poster" | "backdrop" | "preview"): string[] {

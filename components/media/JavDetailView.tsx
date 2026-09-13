@@ -652,21 +652,20 @@ export default function JavDetailView({
             {media.castDetails && media.castDetails.length > 0 ? (
               <div className="space-y-3">
                 {media.castDetails.map((cast, idx) => {
-                  const { nameEn, nameJa } = extractAndTranslateActress(cast.name);
-                  const displayNameEn = nameEn || cast.name;
-                  const displayNameJa = nameJa && nameJa !== displayNameEn ? nameJa : (cast.character && cast.character !== cast.name ? cast.character : undefined);
+                  const displayName = cast.name;
+                  const displayNameJa = cast.character && cast.character !== cast.name ? cast.character : undefined;
 
                   return (
                     <Link
                       key={idx}
-                      href={`/actress/${encodeURIComponent(displayNameEn)}`}
+                      href={`/actress/${encodeURIComponent(displayName)}`}
                       className="group flex items-center gap-3.5 rounded-xl border border-white/5 bg-white/[0.02] p-2.5 transition hover:border-neon/40 hover:bg-neon/10"
                     >
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white/10 group-hover:border-neon transition">
                         {cast.profileUrl || cast.avatarUrl ? (
                           <Image
                             src={cast.profileUrl || cast.avatarUrl!}
-                            alt={displayNameEn}
+                            alt={displayName}
                             fill
                             unoptimized
                             sizes="56px"
@@ -674,13 +673,13 @@ export default function JavDetailView({
                           />
                         ) : (
                           <div className="grid h-full w-full place-items-center bg-neon/20 text-neon font-bold text-sm">
-                            {displayNameEn.charAt(0)}
+                            {displayName.charAt(0)}
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-white group-hover:text-neon transition truncate text-sm">
-                          {displayNameEn}
+                          {displayName}
                         </p>
                         {displayNameJa && (
                           <p className="text-xs text-rose-300/90 font-medium truncate mt-0.5">
@@ -698,25 +697,16 @@ export default function JavDetailView({
             ) : (media.actors && media.actors.length > 0) ? (
               <div className="space-y-2">
                 {media.actors.map((actress, idx) => {
-                  const { nameEn, nameJa } = extractAndTranslateActress(actress);
-                  const displayNameEn = nameEn || actress;
-                  const displayNameJa = nameJa && nameJa !== displayNameEn ? nameJa : undefined;
-
                   return (
                     <Link
                       key={idx}
-                      href={`/actress/${encodeURIComponent(displayNameEn)}`}
+                      href={`/actress/${encodeURIComponent(actress)}`}
                       className="group flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5 transition hover:border-neon/40 hover:bg-neon/10"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-semibold text-white group-hover:text-neon text-sm block truncate">
-                          {displayNameEn}
+                          {actress}
                         </span>
-                        {displayNameJa && (
-                          <span className="text-xs text-rose-300/90 font-medium block truncate mt-0.5">
-                            🇯🇵 {displayNameJa}
-                          </span>
-                        )}
                       </div>
                       <ExternalLink className="h-3.5 w-3.5 text-mist group-hover:text-neon shrink-0 ml-2" />
                     </Link>

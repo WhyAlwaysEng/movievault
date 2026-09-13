@@ -295,47 +295,38 @@ export async function scrapeJavDb(rawCode: string): Promise<JavDbItem> {
           if (gender === "♂") continue;
           if (["Censored", "Uncensored", "Western"].includes(rawName)) continue;
 
-          let enName = translateActressName(rawName);
           let avatarUrl: string | undefined;
 
-            // If name is still Japanese, try fetching JavDB actor page
-            if (containsJapanese(rawName)) {
-              if (actorDetailsCache.has(href)) {
-                const cached = actorDetailsCache.get(href)!;
-                if (cached.nameEn) enName = cached.nameEn;
-                avatarUrl = cached.avatarUrl;
-              } else {
-                try {
-                  const actorRes = await fetch(`https://javdb.com${href}`, {
-                    headers: {
-                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                      Cookie: "over18=1; locale=en",
-                    },
-                    signal: AbortSignal.timeout(3000),
-                  });
-                  if (actorRes.ok) {
-                    const actorHtml = await actorRes.text();
-                    const enMatch = actorHtml.match(/<span class="section-meta">([^<]+)<\/span>/i);
-                    if (enMatch && !enMatch[1].includes("movie(s)") && !containsJapanese(enMatch[1])) {
-                      enName = enMatch[1].trim();
-                    }
-                    const avMatch = actorHtml.match(/url\((https:\/\/c0\.jdbstatic\.com\/avatars\/[^)]+)\)/i);
-                    if (avMatch) avatarUrl = avMatch[1];
-                    actorDetailsCache.set(href, { nameEn: enName, avatarUrl });
-                  }
-                } catch {
-                  // network timeout, keep romanized name
-                }
+          // Fetch avatar photo from JavDB actor page if available
+          if (actorDetailsCache.has(href)) {
+            const cached = actorDetailsCache.get(href)!;
+            avatarUrl = cached.avatarUrl;
+          } else {
+            try {
+              const actorRes = await fetch(`https://javdb.com${href}`, {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                  Cookie: "over18=1; locale=en",
+                },
+                signal: AbortSignal.timeout(3000),
+              });
+              if (actorRes.ok) {
+                const actorHtml = await actorRes.text();
+                const avMatch = actorHtml.match(/url\((https:\/\/c0\.jdbstatic\.com\/avatars\/[^)]+)\)/i);
+                if (avMatch) avatarUrl = avMatch[1];
+                actorDetailsCache.set(href, { avatarUrl });
               }
-            }
-
-            const finalName = enName || rawName;
-            if (!actresses.includes(finalName)) {
-              actresses.push(finalName);
-              actressDetails.push({ name: finalName, avatarUrl });
+            } catch {
+              // network timeout, ignore
             }
           }
+
+          if (!actresses.includes(rawName)) {
+            actresses.push(rawName);
+            actressDetails.push({ name: rawName, avatarUrl });
+          }
         }
+      }
       }
 
     // High-resolution preview scene screenshot stills (only real images)

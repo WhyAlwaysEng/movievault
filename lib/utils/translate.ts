@@ -756,32 +756,32 @@ export function extractAndTranslateActress(rawName: string): { nameEn: string; n
     const part1 = parenMatch[1].trim();
     const part2 = parenMatch[2].trim();
     if (containsJapanese(part1)) {
-      const en = translateActressName(part2 || part1);
+      const en = !containsJapanese(part2) ? part2 : "";
       return { nameEn: en, nameJa: part1 };
     } else {
-      const en = translateActressName(part1);
-      const ja = containsJapanese(part2) ? part2 : (REVERSE_ACTRESS_MAP[en.toLowerCase()] || undefined);
-      return { nameEn: en, nameJa: ja };
+      const ja = containsJapanese(part2) ? part2 : undefined;
+      return { nameEn: part1, nameJa: ja };
     }
   }
 
-  // Check dictionary and romanization
-  const isJa = containsJapanese(clean);
-  const translated = translateActressName(clean);
-  const nameJa = isJa
-    ? (translated !== clean ? clean : undefined)
-    : (REVERSE_ACTRESS_MAP[clean.toLowerCase()] || undefined);
+  // If already non-Japanese (English / Latin alphabet)
+  if (!containsJapanese(clean)) {
+    return { nameEn: clean };
+  }
 
+  // Pure Japanese: Keep original Japanese name, do NOT guess Romaji.
+  // English name can be added manually by user.
   return {
-    nameEn: translated || clean,
-    nameJa,
+    nameEn: "",
+    nameJa: clean,
   };
 }
 
 /**
  * Complete Auto-Translator for JavDbItem.
  * Preserves the original Japanese title in `titleJa` while translating `title`,
- * actress names, studio, series, director, tags, and generating a clean English overview.
+ * studio, series, director, tags, and generating a clean English overview.
+ * Preserves actress names as original Japanese (or user's English names).
  * NEVER inserts dummy/fake actress names when actresses is empty!
  */
 export async function translateJavItem(item: JavDbItem): Promise<JavDbItem> {
@@ -796,20 +796,32 @@ export async function translateJavItem(item: JavDbItem): Promise<JavDbItem> {
   const englishDirector = item.director ? translateDirectorName(item.director) : undefined;
   const englishSeries = item.series ? await translateText(item.series) : undefined;
 
-  // Translate actress names & extract Japanese names for character field
-  const translatedActressesData = (item.actresses || [])
-    .filter(Boolean)
-    .map(extractAndTranslateActress);
-  const translatedActresses = translatedActressesData.map((d) => d.nameEn).filter(Boolean);
+  // Preserve actress names (keep original Japanese names or whatever was scraped)
+  const actressDetails =
+    item.actressDetails && item.actressDetails.length > 0
+      ? item.actressDetails
+          .filter((a) => a.name && a.name.trim())
+          .map((a) => {
+            const info = extractAndTranslateActress(a.name);
+            return {
+              name: info.nameEn || info.nameJa || a.name,
+              character: info.nameEn && info.nameJa ? info.nameJa : (a as { character?: string }).character,
+              avatarUrl: a.avatarUrl,
+            };
+          })
+      : (item.actresses || [])
+          .filter(Boolean)
+          .map((name) => {
+            const info = extractAndTranslateActress(name);
+            return {
+              name: info.nameEn || info.nameJa || name,
+              character: info.nameEn && info.nameJa ? info.nameJa : undefined,
+              avatarUrl: item.posterUrl,
+            };
+          });
 
-  let primaryActress = "";
-  if (translatedActresses.length > 0) {
-    primaryActress = translatedActresses[0];
-  } else if (item.actress && item.actress.trim()) {
-    const pData = extractAndTranslateActress(item.actress);
-    primaryActress = pData.nameEn;
-    if (primaryActress) translatedActresses.push(primaryActress);
-  }
+  const actresses = actressDetails.map((a) => a.name);
+  const primaryActress = actresses[0] || (item.actress ? item.actress.trim() : "");
 
   // Translate tags
   const englishTags = translateTags(item.tags || []);
@@ -829,28 +841,10 @@ export async function translateJavItem(item: JavDbItem): Promise<JavDbItem> {
 
   // Generate clean English overview (No fake actresses!)
   const seriesInfo = englishSeries ? ` as part of the "${englishSeries}" series` : "";
-  const starringText = translatedActresses.length > 0
-    ? `, starring ${translatedActresses.join(", ")}`
+  const starringText = actresses.length > 0
+    ? `, starring ${actresses.join(", ")}`
     : "";
   const overview = `Official adult feature from studio ${englishStudio}${seriesInfo}${starringText} (Catalog code ${item.code}).`;
-
-  const actressDetails =
-    item.actressDetails && item.actressDetails.length > 0
-      ? item.actressDetails
-          .filter((a) => a.name && a.name.trim())
-          .map((a) => {
-            const info = extractAndTranslateActress(a.name);
-            return {
-              name: info.nameEn,
-              character: info.nameJa || undefined,
-              avatarUrl: a.avatarUrl,
-            };
-          })
-      : translatedActressesData.map((info) => ({
-          name: info.nameEn,
-          character: info.nameJa || undefined,
-          avatarUrl: item.posterUrl,
-        }));
 
   return {
     ...item,
@@ -861,7 +855,7 @@ export async function translateJavItem(item: JavDbItem): Promise<JavDbItem> {
     series: englishSeries,
     director: englishDirector,
     actress: primaryActress,
-    actresses: translatedActresses,
+    actresses,
     actressDetails,
     tags: englishTags,
     previewImages: validPreviews,

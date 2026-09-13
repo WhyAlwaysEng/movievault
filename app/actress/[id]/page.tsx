@@ -168,6 +168,16 @@ export default function ActressPage() {
         <div className="flex-1">
           <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
             <h1 className="font-display text-2xl font-bold text-white">{actress.name}</h1>
+            {containsJapanese(actress.name) && canEdit && (
+              <button
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/20 shadow-sm"
+                title="เพิ่มชื่อภาษาอังกฤษสำหรับแสดงผลเป็นชื่อหลักทุกหน้า"
+              >
+                <Pencil className="h-3 w-3" />
+                <span>+ เพิ่มชื่อภาษาอังกฤษ (Set English Name)</span>
+              </button>
+            )}
             {works.some((w) => w.type === "jav") ? (
               <span className="rounded-full border border-neon/30 bg-neon/10 px-2.5 py-0.5 text-xs font-semibold text-neon shadow-neon-pink">
                 AV Idol
@@ -894,23 +904,59 @@ function EditActressForm({
   const pushToast = useUiStore((s) => s.pushToast);
   const requestConfirm = useUiStore((s) => s.requestConfirm);
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState(actress.name);
-  const [aliases, setAliases] = useState(actress.aliases.join(", "));
-  const [country, setCountry] = useState(actress.country ?? "");
+
+  const isCurrentJapanese = containsJapanese(actress.name);
+  const jaFromAlias = actress.aliases.find((a) => containsJapanese(a));
+
+  const [englishName, setEnglishName] = useState(
+    isCurrentJapanese ? "" : actress.name,
+  );
+  const [japaneseName, setJapaneseName] = useState(
+    isCurrentJapanese ? actress.name : (jaFromAlias || ""),
+  );
+  const [otherAliases, setOtherAliases] = useState(
+    actress.aliases
+      .filter((a) => a !== actress.name && a !== jaFromAlias && !containsJapanese(a))
+      .join(", "),
+  );
+  const [country, setCountry] = useState(actress.country ?? "JP");
   const [studio, setStudio] = useState(actress.studio ?? "");
   const [bio, setBio] = useState(actress.bio ?? "");
 
   const save = async () => {
     setBusy(true);
     try {
+      const en = englishName.trim();
+      const ja = japaneseName.trim();
+      const others = otherAliases
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+
+      // Primary name: if English name is provided, use English as primary!
+      // Otherwise, keep the original Japanese name.
+      const primaryName = en || ja || actress.name;
+      const finalAliases: string[] = [];
+
+      if (ja && ja !== primaryName) finalAliases.push(ja);
+      for (const o of others) {
+        if (o !== primaryName && !finalAliases.includes(o)) finalAliases.push(o);
+      }
+
       await updateActress(actress.id, {
-        name,
-        aliases: aliases.split(",").map((a) => a.trim()).filter(Boolean),
+        name: primaryName,
+        aliases: finalAliases,
         country,
         studio,
         bio,
       });
-      pushToast("Profile saved successfully", "success");
+
+      pushToast(
+        en
+          ? `บันทึกชื่อ "${en}" เรียบร้อยแล้ว (แสดงเป็นชื่อหลักทุกหน้า)`
+          : "บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว",
+        "success",
+      );
       onSaved();
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -940,33 +986,88 @@ function EditActressForm({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold text-white">Edit Profile</h1>
+        <div>
+          <h1 className="font-display text-xl font-bold text-white">Edit Actress Profile</h1>
+          <p className="text-xs text-mist">ปรับแต่งชื่อภาษาอังกฤษ ชื่อภาษาญี่ปุ่น และรายละเอียดของนักแสดง</p>
+        </div>
         <button onClick={onCancel} className="text-sm text-mist transition hover:text-white">
           Cancel
         </button>
       </div>
+
       <div className="glass card-surface grid gap-4 p-5 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-xs text-mist">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+        <div className="sm:col-span-2 rounded-xl bg-accent/5 border border-accent/20 p-3.5 space-y-1">
+          <p className="text-xs font-semibold text-accent flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            การตั้งชื่อนักแสดง JAV (Primary Display Name)
+          </p>
+          <p className="text-[11px] text-slate-300 leading-relaxed">
+            เมื่อคุณใส่ <strong>ชื่อภาษาอังกฤษ (English Name)</strong> ระบบจะนำชื่อภาษาอังกฤษนี้ไปแสดงผลเป็นชื่อหลักทุกที่ทั่วทั้งเว็บ (หน้ารวม, การ์ด, หน้าเล่น, ค้นหา) และจะแสดงชื่อภาษาญี่ปุ่นเดิมกำกับเป็น 🇯🇵 ใต้ชื่อหลัก
+          </p>
         </div>
+
         <div>
-          <label className="mb-1 block text-xs text-mist">Aliases (comma separated)</label>
-          <input value={aliases} onChange={(e) => setAliases(e.target.value)} className={inputCls} />
+          <label className="mb-1 block text-xs font-semibold text-accent">
+            ชื่อภาษาอังกฤษ (English Name / ชื่อหลักทุกหน้า)
+          </label>
+          <input
+            value={englishName}
+            onChange={(e) => setEnglishName(e.target.value)}
+            placeholder="เช่น Unpai, Minami Kojima..."
+            className={`${inputCls} border-accent/40 focus:border-accent`}
+            autoFocus={isCurrentJapanese}
+          />
+          <span className="text-[10px] text-mist block mt-1">
+            ใส่ชื่อภาษาอังกฤษเพื่อให้ทุกหน้าแสดงชื่อนี้เป็นหลัก
+          </span>
         </div>
+
         <div>
-          <label className="mb-1 block text-xs text-mist">Country</label>
+          <label className="mb-1 block text-xs font-semibold text-rose-300">
+            ชื่อภาษาญี่ปุ่น (Japanese Name / ชื่อต้นฉบับ 🇯🇵)
+          </label>
+          <input
+            value={japaneseName}
+            onChange={(e) => setJapaneseName(e.target.value)}
+            placeholder="เช่น うんぱい, 小島みなみ..."
+            className={`${inputCls} border-rose-400/30 focus:border-rose-400`}
+          />
+          <span className="text-[10px] text-mist block mt-1">
+            ชื่อต้นฉบับภาษาญี่ปุ่น จะแสดงคู่กันเป็นสัญลักษณ์ 🇯🇵
+          </span>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs text-mist">ฉายา / ชื่ออื่นๆ (Aliases คั่นด้วยจุลภาค)</label>
+          <input
+            value={otherAliases}
+            onChange={(e) => setOtherAliases(e.target.value)}
+            placeholder="เช่น Kojimin, Minamin..."
+            className={inputCls}
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs text-mist">Country (ประเทศ)</label>
           <input value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls} />
         </div>
-        <div>
-          <label className="mb-1 block text-xs text-mist">Studio / Network</label>
-          <input value={studio} onChange={(e) => setStudio(e.target.value)} className={inputCls} />
-        </div>
+
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs text-mist">Biography</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} className={inputCls} />
+          <label className="mb-1 block text-xs text-mist">Studio / Network (ค่าย / สังกัด)</label>
+          <input
+            value={studio}
+            onChange={(e) => setStudio(e.target.value)}
+            placeholder="เช่น S1 NO.1 STYLE, MOODYZ, FALENO..."
+            className={inputCls}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs text-mist">Biography (ประวัติ)</label>
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} className={inputCls} />
         </div>
       </div>
+
       <div className="flex items-center gap-3">
         <button
           onClick={save}
@@ -974,7 +1075,7 @@ function EditActressForm({
           className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-accent to-neon px-5 py-2.5 text-sm font-semibold text-obsidian shadow-neon-cyan transition hover:brightness-110 disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
-          Save
+          Save Changes
         </button>
         <button
           onClick={remove}
