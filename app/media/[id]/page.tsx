@@ -151,6 +151,7 @@ export default function MediaDetailPage() {
         onEdit={() => setEditing(true)}
         onRefresh={(media.code || media.id.startsWith("jav-")) ? handleRefresh : undefined}
         refreshing={refreshing}
+        onUpdateMedia={setMedia}
       />
     );
   }

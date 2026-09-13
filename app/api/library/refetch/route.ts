@@ -100,12 +100,41 @@ export async function POST(req: NextRequest) {
     const insTag = db.prepare("INSERT OR IGNORE INTO media_tags (media_id, tag) VALUES (?, ?)");
     for (const t of item.tags) insTag.run(mediaId, t);
 
-    // Update actresses with English names, Japanese aliases, and photos
-    setMediaActresses(
-      mediaId,
-      item.actressDetails && item.actressDetails.length > 0 ? item.actressDetails : item.actresses,
-      "JP",
-    );
+    // Preserve existing actresses if user already set or edited them
+    const existingDbActors = db
+      .prepare(
+        `SELECT a.id, a.name, a.aliases FROM media_actors ma
+         JOIN actresses a ON a.id = ma.actress_id
+         WHERE ma.media_id = ?`,
+      )
+      .all(mediaId) as Array<{ id: string; name: string; aliases: string }>;
+
+    if (existingDbActors.length > 0) {
+      // User has manually linked actresses or existing actresses in DB.
+      // Do NOT wipe them out. If JavDB has photo/details for any of them, update their profile.
+      const incomingDetails = item.actressDetails || [];
+      for (const inc of incomingDetails) {
+        if (!inc.name) continue;
+        const matched = existingDbActors.find(
+          (ea) =>
+            ea.name.toLowerCase() === inc.name.toLowerCase() ||
+            (ea.aliases && ea.aliases.includes(inc.name)),
+        );
+        if (matched && inc.avatarUrl) {
+          // Update photo if matched actress didn't have one
+          db.prepare(
+            `UPDATE actresses SET photo_path = COALESCE(photo_path, ?), updated_at = ? WHERE id = ?`,
+          ).run(inc.avatarUrl, now, matched.id);
+        }
+      }
+    } else {
+      // Only set actresses from JavDB if the media currently has 0 actresses
+      setMediaActresses(
+        mediaId,
+        item.actressDetails && item.actressDetails.length > 0 ? item.actressDetails : item.actresses,
+        "JP",
+      );
+    }
 
     audit(session.uid, "library.refetch", "media", mediaId, { code });
     return NextResponse.json({ ok: true, media: rowToMedia(getMediaRow(mediaId)!) });

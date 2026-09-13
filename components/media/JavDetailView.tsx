@@ -25,17 +25,21 @@ import {
   Star,
   Tag,
   User,
+  UserPlus,
   Video,
   X,
   Download,
   FolderPlus,
   Magnet,
   Send,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import type { Media, MediaSource } from "@/lib/types";
 import { openGhostPlayer } from "@/lib/utils/ghostPlayer";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useUiStore } from "@/lib/store";
+import { updateMedia } from "@/lib/api/client";
 import {
   extractAndTranslateActress,
   translateStudio,
@@ -45,6 +49,7 @@ import {
 import TrailerModal from "@/components/media/TrailerModal";
 import MediaRow from "@/components/home/MediaRow";
 import AddToCollectionModal from "@/components/media/AddToCollectionModal";
+import ActressAutocompleteInput from "@/components/media/ActressAutocompleteInput";
 
 interface JavDetailViewProps {
   media: Media;
@@ -52,6 +57,7 @@ interface JavDetailViewProps {
   onEdit: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  onUpdateMedia?: (m: Media) => void;
 }
 
 export default function JavDetailView({
@@ -60,6 +66,7 @@ export default function JavDetailView({
   onEdit,
   onRefresh,
   refreshing,
+  onUpdateMedia,
 }: JavDetailViewProps) {
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -69,11 +76,66 @@ export default function JavDetailView({
   const [copiedMagnetIdx, setCopiedMagnetIdx] = useState<number | null>(null);
   const [actressWorks, setActressWorks] = useState<Media[]>([]);
   const [seriesWorks, setSeriesWorks] = useState<Media[]>([]);
+  const [isAddingActress, setIsAddingActress] = useState(false);
+  const [actressInputList, setActressInputList] = useState<string[]>([]);
+  const [busyActress, setBusyActress] = useState(false);
+
   const { isFav, toggle } = useFavorites();
   const pushToast = useUiStore((s) => s.pushToast);
+  const requestConfirm = useUiStore((s) => s.requestConfirm);
   const openLightbox = useUiStore((s) => s.openLightbox);
   const openContextMenu = useUiStore((s) => s.openContextMenu);
   const isFavorite = isFav(media.id);
+
+  // Sync actressInputList from media.actors when editing mode opens
+  const openAddActress = () => {
+    setActressInputList(media.actors || []);
+    setIsAddingActress(true);
+  };
+
+  const handleSaveActresses = async (newList: string[]) => {
+    setBusyActress(true);
+    try {
+      const res = await updateMedia(media.id, { actresses: newList });
+      pushToast("Updated actresses successfully", "success");
+      if (onUpdateMedia && res.media) {
+        onUpdateMedia(res.media);
+      }
+      setIsAddingActress(false);
+    } catch (err) {
+      pushToast((err as Error).message || "Failed to update actresses", "error");
+    } finally {
+      setBusyActress(false);
+    }
+  };
+
+  const handleRemoveSingleActress = async (actressName: string) => {
+    const ok = await requestConfirm({
+      title: `ลบนักแสดง "${actressName}"`,
+      message: `คุณต้องการลบนักแสดง "${actressName}" ออกจากผลงาน "${media.code || media.title}" ใช่หรือไม่?`,
+      confirmText: "ลบนักแสดง",
+      cancelText: "ยกเลิก",
+      kind: "danger",
+    });
+    if (!ok) return;
+
+    const remaining = (media.actors || []).filter(
+      (a) => a.toLowerCase().trim() !== actressName.toLowerCase().trim(),
+    );
+
+    setBusyActress(true);
+    try {
+      const res = await updateMedia(media.id, { actresses: remaining });
+      pushToast(`Removed "${actressName}" from this media`, "success");
+      if (onUpdateMedia && res.media) {
+        onUpdateMedia(res.media);
+      }
+    } catch (err) {
+      pushToast((err as Error).message || "Failed to remove actress", "error");
+    } finally {
+      setBusyActress(false);
+    }
+  };
 
   const extra = (media.extraMeta || {}) as {
     label?: string;
@@ -663,7 +725,57 @@ export default function JavDetailView({
                   Starring Actresses
                 </h2>
               </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={openAddActress}
+                  className="flex items-center gap-1 rounded-lg border border-neon/40 bg-neon/10 px-2.5 py-1 text-xs font-semibold text-neon transition hover:bg-neon/20"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>+ จัดการนักแสดง</span>
+                </button>
+              )}
             </div>
+
+            {/* Inline Actress Add/Edit Panel */}
+            {isAddingActress && canEdit && (
+              <div className="rounded-xl border border-neon/30 bg-white/[0.04] p-3.5 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white">เพิ่ม / ลบนักแสดงในเรื่องนี้</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingActress(false)}
+                    className="rounded p-1 text-mist hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <ActressAutocompleteInput
+                  selected={actressInputList}
+                  onChange={setActressInputList}
+                  placeholder="พิมพ์ค้นหาหรือใส่ชื่อนักแสดง..."
+                />
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingActress(false)}
+                    disabled={busyActress}
+                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-mist hover:bg-white/5"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveActresses(actressInputList)}
+                    disabled={busyActress}
+                    className="flex items-center gap-1.5 rounded-lg bg-neon px-3.5 py-1.5 text-xs font-bold text-obsidian shadow-neon-pink hover:brightness-110 disabled:opacity-50"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>{busyActress ? "กำลังบันทึก..." : "บันทึกรายชื่อ"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {media.castDetails && media.castDetails.length > 0 ? (
               <div className="space-y-3">
@@ -672,41 +784,61 @@ export default function JavDetailView({
                   const displayNameJa = cast.character && cast.character !== cast.name ? cast.character : undefined;
 
                   return (
-                    <Link
+                    <div
                       key={idx}
-                      href={`/actress/${encodeURIComponent(displayName)}`}
-                      className="group flex items-center gap-3.5 rounded-xl border border-white/5 bg-white/[0.02] p-2.5 transition hover:border-neon/40 hover:bg-neon/10"
+                      className="group flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5 transition hover:border-neon/40 hover:bg-neon/10"
                     >
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white/10 group-hover:border-neon transition">
-                        {cast.profileUrl || cast.avatarUrl ? (
-                          <Image
-                            src={cast.profileUrl || cast.avatarUrl!}
-                            alt={displayName}
-                            fill
-                            unoptimized
-                            sizes="56px"
-                            className="object-cover group-hover:scale-110 transition duration-300"
-                          />
-                        ) : (
-                          <div className="grid h-full w-full place-items-center bg-neon/20 text-neon font-bold text-sm">
-                            {displayName.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white group-hover:text-neon transition truncate text-sm">
-                          {displayName}
-                        </p>
-                        {displayNameJa && (
-                          <p className="text-xs text-rose-300/90 font-medium truncate mt-0.5">
-                            🇯🇵 {displayNameJa}
+                      <Link
+                        href={`/actress/${encodeURIComponent(displayName)}`}
+                        className="flex items-center gap-3.5 flex-1 min-w-0"
+                      >
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white/10 group-hover:border-neon transition">
+                          {cast.profileUrl || cast.avatarUrl ? (
+                            <Image
+                              src={cast.profileUrl || cast.avatarUrl!}
+                              alt={displayName}
+                              fill
+                              unoptimized
+                              sizes="56px"
+                              className="object-cover group-hover:scale-110 transition duration-300"
+                            />
+                          ) : (
+                            <div className="grid h-full w-full place-items-center bg-neon/20 text-neon font-bold text-sm">
+                              {displayName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white group-hover:text-neon transition truncate text-sm">
+                            {displayName}
                           </p>
-                        )}
-                        <span className="inline-flex items-center gap-1 text-[11px] text-mist group-hover:text-neon/80 mt-1">
-                          View Works <ExternalLink className="h-2.5 w-2.5" />
-                        </span>
-                      </div>
-                    </Link>
+                          {displayNameJa && (
+                            <p className="text-xs text-rose-300/90 font-medium truncate mt-0.5">
+                              🇯🇵 {displayNameJa}
+                            </p>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[11px] text-mist group-hover:text-neon/80 mt-1">
+                            View Works <ExternalLink className="h-2.5 w-2.5" />
+                          </span>
+                        </div>
+                      </Link>
+
+                      {canEdit && (
+                        <button
+                          type="button"
+                          disabled={busyActress}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveSingleActress(displayName);
+                          }}
+                          className="p-2 rounded-lg border border-transparent text-mist hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition"
+                          title={`ลบ ${displayName} ออกจากเรื่องนี้`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -714,23 +846,43 @@ export default function JavDetailView({
               <div className="space-y-2">
                 {media.actors.map((actress, idx) => {
                   return (
-                    <Link
+                    <div
                       key={idx}
-                      href={`/actress/${encodeURIComponent(actress)}`}
                       className="group flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5 transition hover:border-neon/40 hover:bg-neon/10"
                     >
-                      <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/actress/${encodeURIComponent(actress)}`}
+                        className="min-w-0 flex-1 flex items-center justify-between"
+                      >
                         <span className="font-semibold text-white group-hover:text-neon text-sm block truncate">
                           {actress}
                         </span>
-                      </div>
-                      <ExternalLink className="h-3.5 w-3.5 text-mist group-hover:text-neon shrink-0 ml-2" />
-                    </Link>
+                        <ExternalLink className="h-3.5 w-3.5 text-mist group-hover:text-neon shrink-0 ml-2" />
+                      </Link>
+
+                      {canEdit && (
+                        <button
+                          type="button"
+                          disabled={busyActress}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveSingleActress(actress);
+                          }}
+                          className="ml-2 p-1.5 rounded-lg border border-transparent text-mist hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition"
+                          title={`ลบ ${actress} ออกจากเรื่องนี้`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-xs text-mist italic">No actress information listed.</p>
+              <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-mist">
+                ยังไม่มีข้อมูลนักแสดง กด &quot;+ จัดการนักแสดง&quot; ด้านบนเพื่อเพิ่ม
+              </div>
             )}
           </div>
 
